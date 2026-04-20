@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Comissaria · Avantto</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,500&display=swap" rel="stylesheet" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✈</text></svg>" />
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{background:#0b0f1a;font-family:'DM Sans',sans-serif;overscroll-behavior:none}
+    input:focus,textarea:focus{outline:none}
+    ::-webkit-scrollbar{width:3px;height:3px}
+    ::-webkit-scrollbar-thumb{background:rgba(201,168,76,.25);border-radius:2px}
+    input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
+    input[type=number]{-moz-appearance:textfield}
+  </style>
+</head>
+<body>
+  <div id="root"><div style="height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0b0f1a;color:#c9a84c;font-family:'Rajdhani',sans-serif;letter-spacing:3px;font-size:20px;font-weight:700;gap:10px"><div>AVANTTO</div><div style="font-size:11px;color:#4a5568;letter-spacing:2px">CARREGANDO...</div></div></div>
+
+  <!-- React -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Firebase (inicializa e expõe globalmente) -->
+  <script type="module">
+    import { initializeApp }       from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+    import { getFirestore, doc, setDoc, onSnapshot }
+                                   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+    /* ================================================================
+       PASSO 1 — Cole aqui as credenciais do seu projeto Firebase.
+       Veja o guia de instalação para saber onde encontrar esses dados.
+       ================================================================ */
+    const firebaseConfig = {
+      apiKey:            "AIzaSyCa9L8_0a2to58o1x_eZMNyGvxlFw8lXTY",
+      authDomain:        "avantto-comissaria.firebaseapp.com",
+      projectId:         "avantto-comissaria",
+      storageBucket:     "avantto-comissaria.firebasestorage.app",
+      messagingSenderId: "682125810550",
+      appId:             "1:682125810550:web:3a3302b4bdf32c101b7857"
+    };
+
+    try {
+      const app = initializeApp(firebaseConfig);
+      const db  = getFirestore(app);
+      window._db         = db;
+      window._doc        = doc;
+      window._setDoc     = setDoc;
+      window._onSnapshot = onSnapshot;
+    } catch(e) {
+      console.error("Erro Firebase:", e);
+      window._fbError = e.message;
+    }
+    window._fbReady = true;
+    window.dispatchEvent(new Event('fbReady'));
+  </script>
+
+  <!-- App React (JSX transpilado pelo Babel no browser) -->
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    /* ---------- dados iniciais (planilha original) ---------- */
+    const INIT = [
+      {id:1,  name:"Água S/ Gás",             brand:"Petropolis Paulista", size:"310ml",  type:"BEBIDAS",   stock:264},
+      {id:2,  name:"Água C/ Gás",             brand:"Petropolis Paulista", size:"310ml",  type:"BEBIDAS",   stock:360},
+      {id:3,  name:"Refrigerante Coca-Cola",  brand:"Coca-Cola",           size:"250ml",  type:"BEBIDAS",   stock:120},
+      {id:4,  name:"Refrigerante Coca-Cola Zero",brand:"Coca-Cola Zero",   size:"250ml",  type:"BEBIDAS",   stock:72},
+      {id:5,  name:"Refrigerante Guaraná",    brand:"Guaraná",             size:"200ml",  type:"BEBIDAS",   stock:36},
+      {id:6,  name:"Refrigerante Guaraná Zero",brand:"Guaraná Zero",       size:"200ml",  type:"BEBIDAS",   stock:0},
+      {id:7,  name:"Energético Red Bull",     brand:"Red Bull",            size:"250ml",  type:"BEBIDAS",   stock:12},
+      {id:8,  name:"Refrigerante Del Valle",  brand:"Del Valle",           size:"290ml",  type:"BEBIDAS",   stock:3},
+      {id:9,  name:"Energético Red Bull Zero",brand:"Red Bull Zero",       size:"250ml",  type:"BEBIDAS",   stock:32},
+      {id:10, name:"Suco de Maçã",            brand:"Natural One",         size:"180ml",  type:"BEBIDAS",   stock:84},
+      {id:11, name:"Suco Uva, Pera e Maçã",   brand:"Natural One",         size:"180ml",  type:"BEBIDAS",   stock:0},
+      {id:12, name:"Suco de Uva",             brand:"Natural One",         size:"180ml",  type:"BEBIDAS",   stock:42},
+      {id:13, name:"Suco de Laranja",         brand:"Natural One",         size:"180ml",  type:"BEBIDAS",   stock:42},
+      {id:14, name:"Água de Coco",            brand:"Sococo",              size:"200ml",  type:"BEBIDAS",   stock:0},
+      {id:15, name:"Vinho Branco",            brand:"La Pastina",          size:"750ml",  type:"BEBIDAS",   stock:5},
+      {id:16, name:"Vinho Verde",             brand:"Casal Mendes",        size:"750ml",  type:"BEBIDAS",   stock:2},
+      {id:17, name:"Whisky",                  brand:"Johnnie Walker",      size:"750ml",  type:"BEBIDAS",   stock:5},
+      {id:18, name:"Champagne",               brand:"Perrier Jouet",       size:"750ml",  type:"BEBIDAS",   stock:2},
+      {id:19, name:"Cerveja Lata",            brand:"Heineken",            size:"350ml",  type:"BEBIDAS",   stock:48},
+      {id:20, name:"Chá Gelado Pêssego",      brand:"Ice Tea Leão",        size:"450ml",  type:"BEBIDAS",   stock:20},
+      {id:21, name:"Chá Gelado Limão",        brand:"Ice Tea Leão",        size:"450ml",  type:"BEBIDAS",   stock:9},
+      {id:22, name:"Chá Gelado Lata Limão",   brand:"Ice Tea Leão",        size:"290ml",  type:"BEBIDAS",   stock:6},
+      {id:23, name:"Café",                    brand:"Pilão",               size:"500g",   type:"BEBIDAS",   stock:2},
+      {id:24, name:"Chá English Breakfast",   brand:"Twinings",            size:"20g",    type:"BEBIDAS",   stock:3,  unit:"CX"},
+      {id:25, name:"Chá Té Verde",            brand:"Twinings",            size:"20g",    type:"BEBIDAS",   stock:0,  unit:"CX"},
+      {id:26, name:"Chá Hortelã",             brand:"Twinings",            size:"20g",    type:"BEBIDAS",   stock:0,  unit:"CX"},
+      {id:27, name:"Chá Limón y Lengibre",    brand:"Twinings",            size:"20g",    type:"BEBIDAS",   stock:0,  unit:"CX"},
+      {id:28, name:"Chá Early Grey",          brand:"Twinings",            size:"20g",    type:"BEBIDAS",   stock:1,  unit:"CX"},
+      {id:29, name:"Chá Laranja e Manga",     brand:"Twinings",            size:"20g",    type:"BEBIDAS",   stock:0,  unit:"CX"},
+      {id:30, name:"Chá Maçanã",              brand:"Twinings",            size:"20g",    type:"BEBIDAS",   stock:0,  unit:"CX"},
+      {id:31, name:"Pipoca Salgada",          brand:"Andorinha",           size:"20g",    type:"ALIMENTOS", stock:null},
+      {id:32, name:"Pipoca Manteiga",         brand:"Aviação",             size:"36g",    type:"ALIMENTOS", stock:null},
+      {id:33, name:"Pipoca Azeite e Ervas",   brand:"Aviação",             size:"20g",    type:"ALIMENTOS", stock:null},
+      {id:34, name:"Pipoca Lemon Pepper",     brand:"Aviação",             size:"36g",    type:"ALIMENTOS", stock:null},
+      {id:35, name:"Pipoca Chocolate",        brand:"Aviação",             size:"100g",   type:"ALIMENTOS", stock:0},
+      {id:36, name:"Pipoca Caramelo",         brand:"Aviação",             size:"90g",    type:"ALIMENTOS", stock:0},
+      {id:37, name:"Batata Original",         brand:"Pringles",            size:"35g",    type:"ALIMENTOS", stock:36},
+      {id:38, name:"Chips Original",          brand:"Roots to Go",         size:"45g",    type:"ALIMENTOS", stock:20},
+      {id:39, name:"Chips de Pipoca",         brand:"Roots to Go",         size:"35g",    type:"ALIMENTOS", stock:0},
+      {id:40, name:"Chips Sweet Potato",      brand:"Roots to Go",         size:"45g",    type:"ALIMENTOS", stock:20},
+      {id:41, name:"Chips Queijo Nacho",      brand:"Roots to Go",         size:"35g",    type:"ALIMENTOS", stock:10},
+      {id:42, name:"Biscoito",                brand:"Club Social",         size:"114g",   type:"ALIMENTOS", stock:3,  unit:"PCT"},
+      {id:43, name:"Biscoito Integral",       brand:"Club Social",         size:"114g",   type:"ALIMENTOS", stock:3,  unit:"PCT"},
+      {id:44, name:"Amendoim Japonês",        brand:"Dori",                size:"70g",    type:"ALIMENTOS", stock:50},
+      {id:45, name:"Torrone",                 brand:"Montevérgine",        size:"90g",    type:"ALIMENTOS", stock:0},
+      {id:46, name:"Nuts",                    brand:"Banana Brasil",       size:"25g",    type:"ALIMENTOS", stock:null},
+      {id:47, name:"Barra Supino Zero",       brand:"Banana Brasil",       size:"24g",    type:"ALIMENTOS", stock:40},
+      {id:48, name:"Biscoito Oreo",           brand:"Oreo Original",       size:"35g",    type:"ALIMENTOS", stock:24, unit:"PCT"},
+      {id:49, name:"Biscoito Cookie",         brand:"Toddy",               size:"47g",    type:"ALIMENTOS", stock:20},
+      {id:50, name:"Chocolate Twix",          brand:"Twix",                size:"40g",    type:"ALIMENTOS", stock:0},
+      {id:51, name:"Kit Kat",                 brand:"Nestlé",              size:"41,5g",  type:"ALIMENTOS", stock:25},
+      {id:52, name:"Chocolate Snickers",      brand:"Snickers",            size:"45g",    type:"ALIMENTOS", stock:0},
+      {id:53, name:"Talento Avelã",           brand:"Garoto",              size:"25g",    type:"ALIMENTOS", stock:25},
+      {id:54, name:"Queijo Cremoso",          brand:"Polenguinho",         size:"17g",    type:"ALIMENTOS", stock:50},
+      {id:55, name:"Biscoito Leite com Mel",  brand:"Belvita",             size:"75g",    type:"ALIMENTOS", stock:10, unit:"PCT"},
+      {id:56, name:"Biscoito Maçã e Canela",  brand:"Belvita",             size:"25g",    type:"ALIMENTOS", stock:0},
+      {id:57, name:"Chiclete Hortelã",        brand:"Trident",             size:"8g",     type:"ALIMENTOS", stock:25},
+      {id:58, name:"Chiclete Tutti Frutti",   brand:"Trident",             size:"8g",     type:"ALIMENTOS", stock:25},
+      {id:59, name:"Bala Laranja",            brand:"Tic Tac",             size:"14,5g",  type:"ALIMENTOS", stock:25},
+      {id:60, name:"Bala Menta",              brand:"Tic Tac",             size:"14,5g",  type:"ALIMENTOS", stock:25},
+      {id:61, name:"Bala Mentos",             brand:"Mentos",              size:"37,5g",  type:"ALIMENTOS", stock:10},
+      {id:62, name:"Bala Leite",              brand:"Butter Toffees",      size:"10g",    type:"ALIMENTOS", stock:2,  unit:"PCT"},
+      {id:63, name:"Bala Chocolate",          brand:"Butter Toffees",      size:"10g",    type:"ALIMENTOS", stock:2,  unit:"PCT"},
+      {id:64, name:"Biscoito Maltado",        brand:"Piraquê",             size:"80g",    type:"ALIMENTOS", stock:50},
+      {id:65, name:"Newafer Chocolate",       brand:"Piraquê",             size:"100g",   type:"ALIMENTOS", stock:0},
+      {id:66, name:"Newafer Limão",           brand:"Piraquê",             size:"100g",   type:"ALIMENTOS", stock:6},
+      {id:67, name:"Bolinho de Laranja",      brand:"Casa Suiça",          size:"40g",    type:"ALIMENTOS", stock:0},
+      {id:68, name:"Bolinho de Chocolate",    brand:"Bauducco",            size:"40g",    type:"ALIMENTOS", stock:25},
+      {id:69, name:"Bolinho Duo Chocolate",   brand:"Bauducco",            size:"27g",    type:"ALIMENTOS", stock:25},
+      {id:70, name:"Bananinha Tradicional",   brand:"Paraíbuna",           size:"36g",    type:"ALIMENTOS", stock:0},
+      {id:71, name:"Bananinha S/ Açúcar",     brand:"Paraíbuna",           size:"23g",    type:"ALIMENTOS", stock:0},
+      {id:72, name:"Bananinha Zero Açúcar",   brand:"Oliveira",            size:"22g",    type:"ALIMENTOS", stock:50},
+      {id:73, name:"Barra Pé de Moleque",     brand:"Banana Brasil",       size:"20g",    type:"ALIMENTOS", stock:27},
+      {id:74, name:"Pé de Moleque",           brand:"Yoki",                size:"17g",    type:"ALIMENTOS", stock:0},
+      {id:75, name:"Amendoim Torrado",        brand:"Dori",                size:"70g",    type:"ALIMENTOS", stock:null},
+      {id:76, name:"Paçoquinha",              brand:"Dadinho",             size:"20g",    type:"ALIMENTOS", stock:null},
+      {id:77, name:"Goiabinha",               brand:"Piraquê",             size:"75g",    type:"ALIMENTOS", stock:null},
+      {id:78, name:"Barra Nuts Cacau",        brand:"Nutry",               size:"25g",    type:"ALIMENTOS", stock:30},
+      {id:79, name:"Barra Nuts Cranberry",    brand:"Nutry",               size:"25g",    type:"ALIMENTOS", stock:30},
+      {id:80, name:"Mini Alfajor",            brand:"Odara",               size:"25g",    type:"ALIMENTOS", stock:0},
+      {id:81, name:"Biscoito de Arroz",       brand:"Fit Food",            size:"60g",    type:"ALIMENTOS", stock:0},
+      {id:82, name:"Copos Café",              brand:"",                    size:"",       type:"MATERIAL",  stock:null,unit:"PCT"},
+      {id:83, name:"Copos Médio",             brand:"",                    size:"",       type:"MATERIAL",  stock:null,unit:"PCT"},
+      {id:84, name:"Copos Grande",            brand:"",                    size:"",       type:"MATERIAL",  stock:null,unit:"PCT"},
+      {id:85, name:"Papel Toalha",            brand:"",                    size:"",       type:"MATERIAL",  stock:null,unit:"PCT"},
+      {id:86, name:"Guardanapo",              brand:"",                    size:"",       type:"MATERIAL",  stock:null,unit:"PCT"},
+      {id:87, name:"Filtro de Café",          brand:"",                    size:"",       type:"MATERIAL",  stock:1,   unit:"PCT"},
+    ];
+
+    const LOCS = ["Armário","Geladeira Pilotos","Sala VIP","Cestinha"];
+    const CATS = ["TODOS","BEBIDAS","ALIMENTOS","MATERIAL"];
+    const CAT_C = {BEBIDAS:"#38bdf8",ALIMENTOS:"#facc15",MATERIAL:"#94a3b8"};
+    const CAT_BG = {BEBIDAS:"rgba(56,189,248,.12)",ALIMENTOS:"rgba(250,204,21,.12)",MATERIAL:"rgba(148,163,184,.12)"};
+
+    function status(s){
+      if(s===null||s===undefined) return{label:"A confirmar",color:"#94a3b8",bg:"rgba(148,163,184,.15)",dot:"#94a3b8"};
+      if(s===0)  return{label:"Esgotado",  color:"#f87171",bg:"rgba(248,113,113,.15)",dot:"#ef4444"};
+      if(s<=5)   return{label:"Crítico",   color:"#fb923c",bg:"rgba(251,146,60,.15)", dot:"#f97316"};
+      if(s<=15)  return{label:"Necessário",color:"#c084fc",bg:"rgba(192,132,252,.15)",dot:"#a855f7"};
+      return{label:"Em estoque",color:"#4ade80",bg:"rgba(74,222,128,.15)",dot:"#22c55e"};
+    }
+    function fmtTs(ts){
+      if(!ts) return "";
+      return new Date(ts).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
+    }
+
+    /* ==================== componente principal ==================== */
+    function App(){
+      const [items,   setItems]   = useState(INIT);
+      const [movs,    setMovs]    = useState([]);
+      const [user,    setUser]    = useState(null);
+      const [loading, setLoading] = useState(true);
+      const [fbErr,   setFbErr]   = useState(null);
+      const [view,    setView]    = useState("items");
+      const [cat,     setCat]     = useState("TODOS");
+      const [stF,     setStF]     = useState("Todos");
+      const [search,  setSearch]  = useState("");
+      const [modal,   setModal]   = useState(null);
+      const [mLoc,    setMLoc]    = useState("");
+      const [mQty,    setMQty]    = useState(1);
+      const [mNote,   setMNote]   = useState("");
+      const [adjM,    setAdjM]    = useState(null);
+      const [adjQ,    setAdjQ]    = useState(0);
+      const [itmM,    setItmM]    = useState(null);
+      const [itmF,    setItmF]    = useState({name:"",brand:"",size:"",type:"BEBIDAS",unit:""});
+      const [delC,    setDelC]    = useState(null);
+      const [uModal,  setUModal]  = useState(false);
+      const [uName,   setUName]   = useState("");
+      const [toast,   setToast]   = useState(null);
+
+      /* ---------- Firebase listeners ---------- */
+      useEffect(()=>{
+        const saved = localStorage.getItem("avantto-user");
+        if(saved){ setUser(saved); } else { setUModal(true); }
+
+        const setup = () => {
+          if(window._fbError){ setFbErr(window._fbError); setLoading(false); return ()=>{}; }
+          const db = window._db;
+          const unsubI = window._onSnapshot(
+            window._doc(db,"comissaria","items"),
+            snap=>{
+              if(snap.exists()){
+                const sv = snap.data().list||[];
+                setItems(INIT.map(i=>{ const f=sv.find(s=>s.id===i.id); return f||i; }));
+              }
+              setLoading(false);
+            },
+            err=>{ setFbErr(err.message); setLoading(false); }
+          );
+          const unsubM = window._onSnapshot(
+            window._doc(db,"comissaria","movements"),
+            snap=>{ if(snap.exists()) setMovs(snap.data().list||[]); }
+          );
+          return ()=>{ unsubI(); unsubM(); };
+        };
+
+        let cleanup;
+        if(window._fbReady){ cleanup=setup(); }
+        else{
+          const h=()=>{ cleanup=setup(); };
+          window.addEventListener("fbReady",h,{once:true});
+        }
+        return ()=>{ if(cleanup) cleanup(); };
+      },[]);
+
+      const showToast=(msg,ok=true)=>{ setToast({msg,ok}); setTimeout(()=>setToast(null),2800); };
+
+      const saveItems = async nx => {
+        setItems(nx);
+        await window._setDoc(window._doc(window._db,"comissaria","items"),{list:nx});
+      };
+      const saveMovs = async nx => {
+        const sl=nx.slice(-300); setMovs(sl);
+        await window._setDoc(window._doc(window._db,"comissaria","movements"),{list:sl});
+      };
+
+      /* ---------- handlers ---------- */
+      const handleMove = async()=>{
+        if(!modal||!mLoc) return;
+        const{item,type}=modal;
+        const qty=Math.max(1,parseInt(mQty)||1);
+        const cur=item.stock??0;
+        const nxt=type==="entrada"?cur+qty:Math.max(0,cur-qty);
+        const ts=Date.now();
+        const nx=items.map(i=>i.id===item.id?{...i,stock:nxt,lastBy:user,lastAt:ts}:i);
+        const mv={id:ts,itemId:item.id,itemName:item.name,brand:item.brand,type,qty,loc:mLoc,user,ts,before:cur,after:nxt,note:mNote};
+        await saveItems(nx); await saveMovs([...movs,mv]);
+        setModal(null);setMLoc("");setMQty(1);setMNote("");
+        showToast(`${type==="entrada"?"Entrada":"Saída"} registrada — ${item.name}`);
+      };
+
+      const handleAdj = async()=>{
+        if(!adjM) return;
+        const qty=Math.max(0,parseInt(adjQ)||0), ts=Date.now();
+        const nx=items.map(i=>i.id===adjM.id?{...i,stock:qty,lastBy:user,lastAt:ts}:i);
+        const mv={id:ts,itemId:adjM.id,itemName:adjM.name,brand:adjM.brand,type:"ajuste",qty,loc:"—",user,ts,before:adjM.stock,after:qty,note:"Ajuste manual"};
+        await saveItems(nx); await saveMovs([...movs,mv]);
+        setAdjM(null); showToast(`Estoque ajustado — ${adjM.name}`);
+      };
+
+      const openItm=(item)=>{
+        if(item==="new") setItmF({name:"",brand:"",size:"",type:"BEBIDAS",unit:""});
+        else setItmF({name:item.name,brand:item.brand||"",size:item.size||"",type:item.type,unit:item.unit||""});
+        setItmM(item);
+      };
+      const handleSaveItm = async()=>{
+        if(!itmF.name.trim()) return;
+        const ts=Date.now(); let nx;
+        if(itmM==="new"){ nx=[...items,{id:ts,...itmF,stock:null,lastBy:user,lastAt:ts}]; showToast(`"${itmF.name}" adicionado!`); }
+        else{ nx=items.map(i=>i.id===itmM.id?{...i,...itmF,lastBy:user,lastAt:ts}:i); showToast(`"${itmF.name}" atualizado!`); }
+        await saveItems(nx); setItmM(null);
+      };
+      const handleDelItm = async()=>{
+        if(!delC) return;
+        await saveItems(items.filter(i=>i.id!==delC.id));
+        setDelC(null);setItmM(null); showToast("Item removido.");
+      };
+
+      const saveUser=()=>{
+        if(!uName.trim()) return;
+        localStorage.setItem("avantto-user",uName.trim());
+        setUser(uName.trim());setUModal(false);setUName("");
+      };
+
+      /* ---------- relatórios ---------- */
+      const rptWhats=()=>{
+        const now=new Date().toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"});
+        const esg=items.filter(i=>status(i.stock).label==="Esgotado");
+        const crt=items.filter(i=>status(i.stock).label==="Crítico");
+        const nec=items.filter(i=>status(i.stock).label==="Necessário");
+        let t=`✈ *AVANTTO — Checklist Comissaria*\n📅 ${now}\n👤 ${user||"—"}\n\n`;
+        if(esg.length){ t+=`🔴 *ESGOTADOS (${esg.length})*\n`; esg.forEach(i=>{ t+=`• ${i.name}${i.brand?` (${i.brand})`:""} — 0 unid.\n`; }); t+="\n"; }
+        if(crt.length){ t+=`🟠 *CRÍTICO — PEDIR URGENTE (${crt.length})*\n`; crt.forEach(i=>{ t+=`• ${i.name}${i.brand?` (${i.brand})`:""} — ${i.stock} unid.\n`; }); t+="\n"; }
+        if(nec.length){ t+=`🟡 *NECESSÁRIO (${nec.length})*\n`; nec.forEach(i=>{ t+=`• ${i.name}${i.brand?` (${i.brand})`:""} — ${i.stock} unid.\n`; }); t+="\n"; }
+        if(!esg.length&&!crt.length&&!nec.length) t+=`✅ Todos os produtos em estoque!\n`;
+        return t+`\n_Enviado via App Comissaria Avantto_`;
+      };
+      const rptCompleto=()=>{
+        const now=new Date().toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"});
+        const mes=new Date().toLocaleString("pt-BR",{month:"long",year:"numeric"}).toUpperCase();
+        let t=`📋 *RELATÓRIO DE ESTOQUE — AVANTTO*\n📅 ${now} · ${mes}\n👤 ${user||"—"}\n${"─".repeat(35)}\n\n`;
+        ["BEBIDAS","ALIMENTOS","MATERIAL"].forEach(tp=>{
+          t+=`*${tp}*\n`;
+          items.filter(i=>i.type===tp).forEach(i=>{
+            const st=status(i.stock);
+            const ic=st.label==="Em estoque"?"✅":st.label==="Esgotado"?"🔴":st.label==="Crítico"?"🟠":st.label==="Necessário"?"🟡":"⚪";
+            t+=`${ic} ${i.name}${i.brand?" — "+i.brand:""}: ${i.stock===null?"?":i.stock} ${i.unit||"unid"}\n`;
+          });
+          t+="\n";
+        });
+        const ok=items.filter(i=>status(i.stock).label==="Em estoque").length;
+        const lw=items.filter(i=>["Necessário","Crítico"].includes(status(i.stock).label)).length;
+        const ou=items.filter(i=>status(i.stock).label==="Esgotado").length;
+        t+=`${"─".repeat(35)}\nTotal: ${items.length} itens | ✅ ${ok} | 🟡 ${lw} baixo | 🔴 ${ou} esgotado\n_Relatório gerado pelo App Comissaria Avantto_`;
+        return t;
+      };
+      const copiar=(txt,msg)=>navigator.clipboard.writeText(txt).then(()=>showToast(msg)).catch(()=>showToast("Erro ao copiar",false));
+
+      /* ---------- derivados ---------- */
+      const filtered=items.filter(i=>{
+        if(cat!=="TODOS"&&i.type!==cat) return false;
+        if(stF!=="Todos"){
+          const lb=status(i.stock).label;
+          if(stF==="Necessário"&&!["Necessário","Crítico"].includes(lb)) return false;
+          if(stF!=="Necessário"&&lb!==stF) return false;
+        }
+        if(search){ const q=search.toLowerCase(); if(!i.name.toLowerCase().includes(q)&&!(i.brand||"").toLowerCase().includes(q)) return false; }
+        return true;
+      });
+      const alerts=items.filter(i=>["Esgotado","Crítico","Necessário"].includes(status(i.stock).label)).sort((a,b)=>(a.stock??0)-(b.stock??0));
+      const stats={
+        ok:items.filter(i=>status(i.stock).label==="Em estoque").length,
+        lw:items.filter(i=>["Necessário","Crítico"].includes(status(i.stock).label)).length,
+        ou:items.filter(i=>status(i.stock).label==="Esgotado").length,
+      };
+
+      /* ---------- estilos compartilhados ---------- */
+      const overlay={position:"fixed",inset:0,background:"rgba(0,0,0,.72)",display:"flex",alignItems:"flex-end",zIndex:200,backdropFilter:"blur(6px)"};
+      const sheet={width:"100%",background:"#111827",borderRadius:"18px 18px 0 0",padding:"20px 18px 30px",maxHeight:"82vh",overflowY:"auto"};
+      const handle={width:36,height:3,background:"rgba(255,255,255,.15)",borderRadius:2,margin:"0 auto 14px"};
+      const secLbl={fontSize:10,letterSpacing:1.5,color:"#4a5568",marginBottom:7};
+      const cancelBtn={width:"100%",padding:"10px",borderRadius:11,background:"none",color:"#4a5568",fontSize:12,border:"none",cursor:"pointer",marginTop:6};
+      const chip=(on,c="#c9a84c")=>({flex:"0 0 auto",padding:"4px 12px",borderRadius:20,fontSize:11,fontWeight:500,background:on?`rgba(201,168,76,.18)`:"rgba(255,255,255,.04)",color:on?c:"#4a5568",border:`1px solid ${on?"rgba(201,168,76,.4)":"rgba(255,255,255,.07)"}`,cursor:"pointer"});
+
+      /* ==================== TELA DE CARREGAMENTO ==================== */
+      if(loading) return(
+        <div style={{height:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"#0b0f1a",color:"#c9a84c",fontFamily:"'Rajdhani',sans-serif",letterSpacing:3,fontSize:20,fontWeight:700,gap:12}}>
+          <div>AVANTTO</div>
+          <div style={{fontSize:11,color:"#4a5568",letterSpacing:2}}>CARREGANDO COMISSARIA...</div>
+        </div>
+      );
+
+      /* ==================== ERRO FIREBASE ==================== */
+      if(fbErr) return(
+        <div style={{height:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"#0b0f1a",padding:24,textAlign:"center"}}>
+          <div style={{fontSize:32,marginBottom:12}}>⚙️</div>
+          <div style={{fontFamily:"'Rajdhani',sans-serif",fontSize:18,color:"#f87171",marginBottom:8}}>Erro de conexão com Firebase</div>
+          <div style={{fontSize:12,color:"#4a5568",maxWidth:320,lineHeight:1.7}}>Verifique se as credenciais do Firebase foram preenchidas corretamente no arquivo <code style={{background:"rgba(255,255,255,.07)",padding:"1px 5px",borderRadius:4,color:"#c9a84c"}}>index.html</code>.</div>
+          <div style={{fontSize:11,color:"#374151",marginTop:12,fontFamily:"monospace",background:"rgba(255,255,255,.04)",padding:"10px 14px",borderRadius:8,maxWidth:340,wordBreak:"break-all"}}>{fbErr}</div>
+        </div>
+      );
+
+      /* ==================== APP PRINCIPAL ==================== */
+      return(
+        <div style={{background:"#0b0f1a",minHeight:"100vh",color:"#e2e8f0"}}>
+
+          {/* HEADER */}
+          <header style={{padding:"13px 16px",borderBottom:"1px solid rgba(201,168,76,.18)",display:"flex",alignItems:"center",justifyContent:"space-between",background:"rgba(11,15,26,.92)",position:"sticky",top:0,zIndex:50,backdropFilter:"blur(10px)"}}>
+            <div>
+              <div style={{fontFamily:"'Rajdhani',sans-serif",fontSize:18,fontWeight:700,color:"#c9a84c",letterSpacing:3}}>AVANTTO</div>
+              <div style={{fontSize:9,color:"#4a5568",letterSpacing:2}}>CONTROLE DE COMISSARIA</div>
+            </div>
+            <button onClick={()=>setUModal(true)} style={{background:"rgba(201,168,76,.1)",border:"1px solid rgba(201,168,76,.25)",borderRadius:20,padding:"5px 12px",color:"#c9a84c",fontSize:12,cursor:"pointer",display:"flex",alignItems:"center",gap:5}}>
+              <span style={{fontSize:13}}>✈</span>{user||"Identificar-se"}
+            </button>
+          </header>
+
+          {/* STATS */}
+          <div style={{display:"flex",gap:6,padding:"10px 12px",overflowX:"auto"}}>
+            {[[items.length,"Total","#94a3b8"],[stats.ok,"Em estoque","#4ade80"],[stats.lw,"Necessário","#c084fc"],[stats.ou,"Esgotado","#f87171"]].map(([v,l,c])=>(
+              <div key={l} style={{flex:"0 0 auto",background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.06)",borderRadius:10,padding:"8px 14px",textAlign:"center",minWidth:82}}>
+                <div style={{fontSize:20,fontWeight:700,fontFamily:"'Rajdhani',sans-serif",color:c,lineHeight:1}}>{v}</div>
+                <div style={{fontSize:9,color:"#4a5568",letterSpacing:.5,marginTop:2}}>{l}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* NAV */}
+          <div style={{display:"flex",borderBottom:"1px solid rgba(255,255,255,.05)",padding:"0 8px",gap:2,background:"rgba(11,15,26,.6)",overflowX:"auto"}}>
+            {[["items","📦 Estoque"],["history","📋 Histórico"],["alerts",`⚠️ Alertas${alerts.length?" ("+alerts.length+")":""}`],["reports","📤 Relatórios"],["manage","⚙️ Itens"]].map(([v,l])=>(
+              <button key={v} onClick={()=>setView(v)} style={{flex:"0 0 auto",padding:"10px 12px",background:"none",color:view===v?"#c9a84c":"#4a5568",borderBottom:view===v?"2px solid #c9a84c":"2px solid transparent",fontSize:11,fontWeight:500,cursor:"pointer",border:"none",borderBottom:view===v?"2px solid #c9a84c":"2px solid transparent",whiteSpace:"nowrap"}}>{l}</button>
+            ))}
+          </div>
+
+          {/* ===== ESTOQUE ===== */}
+          {view==="items"&&<>
+            <div style={{padding:"10px 12px 0"}}>
+              <input placeholder="Buscar produto ou marca..." value={search} onChange={e=>setSearch(e.target.value)} style={{width:"100%",background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.08)",borderRadius:8,padding:"9px 12px",color:"#e2e8f0",fontSize:13,marginBottom:8}}/>
+              <div style={{display:"flex",gap:5,overflowX:"auto",marginBottom:6}}>
+                {CATS.map(c=><button key={c} style={chip(cat===c)} onClick={()=>setCat(c)}>{c}</button>)}
+              </div>
+              <div style={{display:"flex",gap:5,overflowX:"auto",marginBottom:8}}>
+                {["Todos","Em estoque","Necessário","Esgotado","A confirmar"].map(f=><button key={f} style={chip(stF===f)} onClick={()=>setStF(f)}>{f}</button>)}
+              </div>
+              <div style={{fontSize:10,color:"#4a5568",marginBottom:6}}>{filtered.length} produto{filtered.length!==1?"s":""}</div>
+            </div>
+            <div style={{padding:"0 12px 90px",display:"grid",gap:7}}>
+              {filtered.map(item=>{
+                const st=status(item.stock);
+                return(
+                  <div key={item.id} style={{background:"rgba(255,255,255,.025)",border:"1px solid rgba(255,255,255,.065)",borderLeft:`2px solid ${(CAT_C[item.type]||"#94a3b8")}30`,borderRadius:12,padding:"12px",display:"flex",alignItems:"center",gap:10}}>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:13,fontWeight:500,color:"#e2e8f0",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginBottom:2}}>{item.name}</div>
+                      <div style={{fontSize:10,color:"#4a5568",marginBottom:5}}>{[item.brand,item.size,item.unit].filter(Boolean).join(" · ")}</div>
+                      <span style={{fontSize:10,padding:"2px 7px",borderRadius:20,background:st.bg,color:st.color,fontWeight:500}}>{st.label}</span>
+                      {item.lastBy&&<div style={{fontSize:9,color:"#374151",marginTop:3}}>↻ {item.lastBy} · {fmtTs(item.lastAt)}</div>}
+                    </div>
+                    <div style={{textAlign:"center",minWidth:44}}>
+                      <div style={{fontSize:24,fontWeight:700,fontFamily:"'Rajdhani',sans-serif",color:st.color,lineHeight:1}}>{item.stock===null?"?":item.stock}</div>
+                      <div style={{fontSize:8,color:"#4a5568",letterSpacing:.5}}>{item.unit||"UNID"}</div>
+                    </div>
+                    <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                      <button style={{background:"rgba(34,197,94,.12)",border:"1px solid rgba(34,197,94,.25)",borderRadius:7,padding:"5px 8px",color:"#4ade80",fontSize:10,fontWeight:600,cursor:"pointer"}} onClick={()=>{setModal({item,type:"entrada"});setMLoc("");setMQty(1);setMNote("")}}>+ Entrada</button>
+                      <button style={{background:"rgba(248,113,113,.1)",border:"1px solid rgba(248,113,113,.22)",borderRadius:7,padding:"5px 8px",color:"#f87171",fontSize:10,fontWeight:600,cursor:"pointer"}} onClick={()=>{setModal({item,type:"saida"});setMLoc("");setMQty(1);setMNote("")}}>− Saída</button>
+                      <button style={{background:"rgba(148,163,184,.08)",border:"1px solid rgba(148,163,184,.18)",borderRadius:7,padding:"5px 8px",color:"#94a3b8",fontSize:10,fontWeight:600,cursor:"pointer"}} onClick={()=>{setAdjM(item);setAdjQ(item.stock??0)}}>✏ Ajustar</button>
+                      <button style={{background:"rgba(99,102,241,.08)",border:"1px solid rgba(99,102,241,.22)",borderRadius:7,padding:"5px 8px",color:"#818cf8",fontSize:10,fontWeight:600,cursor:"pointer"}} onClick={()=>openItm(item)}>⚙ Editar</button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>}
+
+          {/* ===== HISTÓRICO ===== */}
+          {view==="history"&&(
+            <div style={{padding:"12px 12px 90px"}}>
+              {movs.length===0
+                ?<div style={{textAlign:"center",color:"#4a5568",padding:40}}>Nenhuma movimentação registrada ainda.</div>
+                :[...movs].reverse().map(m=>{
+                  const isAdj=m.type==="ajuste";
+                  const tc=isAdj?"#94a3b8":m.type==="entrada"?"#4ade80":"#f87171";
+                  return(
+                    <div key={m.id} style={{background:"rgba(255,255,255,.025)",border:"1px solid rgba(255,255,255,.055)",borderRadius:10,padding:"11px",marginBottom:7}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{fontSize:12,fontWeight:500,color:"#e2e8f0",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.itemName}</div>
+                          <div style={{fontSize:10,color:"#4a5568"}}>{m.brand}</div>
+                        </div>
+                        <span style={{fontSize:12,fontWeight:700,fontFamily:"'Rajdhani',sans-serif",color:tc,marginLeft:8,flexShrink:0}}>{isAdj?`→ ${m.after}`:m.type==="entrada"?`+${m.qty}`:`-${m.qty}`}</span>
+                      </div>
+                      <div style={{fontSize:10,color:"#4a5568"}}>📍 {m.loc} · 👤 {m.user} · {fmtTs(m.ts)}</div>
+                      {!isAdj&&<div style={{fontSize:9,color:"#374151",marginTop:2}}>{m.before} → {m.after} unid.</div>}
+                      {m.note&&m.note!=="Ajuste manual"&&<div style={{fontSize:10,color:"#6b7280",marginTop:3,fontStyle:"italic"}}>"{m.note}"</div>}
+                    </div>
+                  );
+                })
+              }
+            </div>
+          )}
+
+          {/* ===== ALERTAS ===== */}
+          {view==="alerts"&&(
+            <div style={{padding:"12px 12px 90px"}}>
+              {alerts.length===0
+                ?<div style={{textAlign:"center",color:"#4ade80",padding:40}}>✅ Todos os produtos em estoque!</div>
+                :<>
+                  <div style={{fontSize:11,color:"#4a5568",marginBottom:10}}>{alerts.filter(i=>status(i.stock).label==="Esgotado").length} esgotados · {alerts.filter(i=>["Crítico","Necessário"].includes(status(i.stock).label)).length} com estoque baixo</div>
+                  {alerts.map(item=>{
+                    const st=status(item.stock);
+                    return(
+                      <div key={item.id} style={{background:"rgba(255,255,255,.025)",borderLeft:`3px solid ${st.dot}`,borderRadius:10,padding:"11px 12px",marginBottom:7}}>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                          <div style={{flex:1,minWidth:0}}>
+                            <div style={{fontSize:13,fontWeight:500,color:"#e2e8f0",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{item.name}</div>
+                            <div style={{fontSize:10,color:"#4a5568"}}>{item.brand} · {item.type}</div>
+                            {item.lastBy&&<div style={{fontSize:9,color:"#374151",marginTop:2}}>↻ {item.lastBy} · {fmtTs(item.lastAt)}</div>}
+                          </div>
+                          <div style={{textAlign:"right",marginLeft:10,flexShrink:0}}>
+                            <div style={{fontSize:22,fontWeight:700,fontFamily:"'Rajdhani',sans-serif",color:st.color,lineHeight:1}}>{item.stock===null?"?":item.stock}</div>
+                            <span style={{fontSize:10,padding:"1px 6px",borderRadius:20,background:st.bg,color:st.color}}>{st.label}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </>
+              }
+            </div>
+          )}
+
+          {/* ===== RELATÓRIOS ===== */}
+          {view==="reports"&&(
+            <div style={{padding:"16px 12px 90px"}}>
+              <div style={{fontSize:11,color:"#4a5568",marginBottom:16}}>Copie e cole direto no WhatsApp ou onde preferir.</div>
+              <div style={{background:"rgba(255,255,255,.025)",border:"1px solid rgba(37,211,102,.25)",borderRadius:12,padding:16,marginBottom:12}}>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+                  <span style={{fontSize:18}}>💬</span>
+                  <div>
+                    <div style={{fontSize:13,fontWeight:500,color:"#e2e8f0"}}>Checklist para WhatsApp</div>
+                    <div style={{fontSize:10,color:"#4a5568"}}>Itens esgotados e com estoque baixo</div>
+                  </div>
+                </div>
+                <pre style={{background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.06)",borderRadius:8,padding:"10px 12px",fontSize:11,color:"#94a3b8",whiteSpace:"pre-wrap",wordBreak:"break-word",marginBottom:12,maxHeight:200,overflowY:"auto",fontFamily:"monospace"}}>{rptWhats()}</pre>
+                <button onClick={()=>copiar(rptWhats(),"✅ Copiado! Cole no WhatsApp")} style={{width:"100%",padding:"11px",borderRadius:9,background:"rgba(37,211,102,.18)",border:"1px solid rgba(37,211,102,.35)",color:"#25d366",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'Rajdhani',sans-serif"}}>Copiar para WhatsApp</button>
+              </div>
+              <div style={{background:"rgba(255,255,255,.025)",border:"1px solid rgba(201,168,76,.2)",borderRadius:12,padding:16}}>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+                  <span style={{fontSize:18}}>📋</span>
+                  <div>
+                    <div style={{fontSize:13,fontWeight:500,color:"#e2e8f0"}}>Relatório Completo de Estoque</div>
+                    <div style={{fontSize:10,color:"#4a5568"}}>Todos os produtos — ideal para pedidos mensais</div>
+                  </div>
+                </div>
+                <pre style={{background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.06)",borderRadius:8,padding:"10px 12px",fontSize:10,color:"#94a3b8",whiteSpace:"pre-wrap",wordBreak:"break-word",marginBottom:12,maxHeight:260,overflowY:"auto",fontFamily:"monospace"}}>{rptCompleto()}</pre>
+                <button onClick={()=>copiar(rptCompleto(),"✅ Relatório copiado!")} style={{width:"100%",padding:"11px",borderRadius:9,background:"rgba(201,168,76,.15)",border:"1px solid rgba(201,168,76,.3)",color:"#c9a84c",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'Rajdhani',sans-serif"}}>Copiar relatório completo</button>
+              </div>
+            </div>
+          )}
+
+          {/* ===== GERENCIAR ITENS ===== */}
+          {view==="manage"&&(
+            <div style={{padding:"12px 12px 90px"}}>
+              <button onClick={()=>openItm("new")} style={{width:"100%",padding:"13px",borderRadius:11,background:"rgba(99,102,241,.15)",border:"1px dashed rgba(99,102,241,.4)",color:"#818cf8",fontSize:13,fontWeight:600,cursor:"pointer",marginBottom:16,fontFamily:"'Rajdhani',sans-serif"}}>+ Adicionar novo produto</button>
+              <div style={{fontSize:10,color:"#4a5568",marginBottom:10}}>{items.length} produtos cadastrados — toque para editar</div>
+              {["BEBIDAS","ALIMENTOS","MATERIAL"].map(tp=>(
+                <div key={tp} style={{marginBottom:20}}>
+                  <div style={{fontSize:10,fontWeight:600,letterSpacing:2,color:CAT_C[tp],marginBottom:8,paddingLeft:4}}>{tp}</div>
+                  {items.filter(i=>i.type===tp).map(item=>(
+                    <div key={item.id} onClick={()=>openItm(item)} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 12px",background:"rgba(255,255,255,.025)",border:"1px solid rgba(255,255,255,.06)",borderRadius:9,marginBottom:5,cursor:"pointer"}}>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:12,fontWeight:500,color:"#e2e8f0",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{item.name}</div>
+                        <div style={{fontSize:10,color:"#4a5568"}}>{[item.brand,item.size,item.unit].filter(Boolean).join(" · ")||"—"}</div>
+                      </div>
+                      <span style={{fontSize:11,color:"#6366f1",marginLeft:8,flexShrink:0}}>Editar ›</span>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* ===== MODAL ENTRADA/SAÍDA ===== */}
+          {modal&&(
+            <div style={overlay} onClick={e=>e.target===e.currentTarget&&setModal(null)}>
+              <div style={sheet}>
+                <div style={handle}></div>
+                <div style={{fontSize:10,letterSpacing:2,color:modal.type==="entrada"?"#4ade80":"#f87171",textAlign:"center",marginBottom:4}}>{modal.type==="entrada"?"▲ ENTRADA":"▼ SAÍDA"}</div>
+                <div style={{fontFamily:"'Rajdhani',sans-serif",fontSize:17,fontWeight:600,color:"#e2e8f0",textAlign:"center",marginBottom:2}}>{modal.item.name}</div>
+                <div style={{fontSize:11,color:"#4a5568",textAlign:"center",marginBottom:16}}>Estoque atual: {modal.item.stock===null?"?":modal.item.stock}</div>
+                <div style={secLbl}>LOCAL</div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7,marginBottom:16}}>
+                  {LOCS.map(loc=>(
+                    <button key={loc} onClick={()=>setMLoc(loc)} style={{padding:"11px 8px",borderRadius:9,background:mLoc===loc?(modal.type==="entrada"?"rgba(74,222,128,.18)":"rgba(248,113,113,.15)"):"rgba(255,255,255,.04)",border:`1px solid ${mLoc===loc?(modal.type==="entrada"?"rgba(74,222,128,.4)":"rgba(248,113,113,.3)"):"rgba(255,255,255,.07)"}`,color:mLoc===loc?(modal.type==="entrada"?"#4ade80":"#f87171"):"#94a3b8",fontSize:12,fontWeight:500,cursor:"pointer"}}>{loc}</button>
+                  ))}
+                </div>
+                <div style={secLbl}>QUANTIDADE</div>
+                <div style={{display:"flex",alignItems:"center",gap:10,background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.07)",borderRadius:9,padding:"7px 10px",marginBottom:12}}>
+                  <button onClick={()=>setMQty(Math.max(1,mQty-1))} style={{width:30,height:30,borderRadius:7,background:"rgba(255,255,255,.07)",color:"#e2e8f0",fontSize:16,border:"none",cursor:"pointer"}}>−</button>
+                  <input type="number" value={mQty} onChange={e=>setMQty(Math.max(1,parseInt(e.target.value)||1))} style={{flex:1,background:"none",border:"none",color:"#e2e8f0",fontSize:22,fontWeight:700,fontFamily:"'Rajdhani',sans-serif",textAlign:"center"}}/>
+                  <button onClick={()=>setMQty(mQty+1)} style={{width:30,height:30,borderRadius:7,background:"rgba(255,255,255,.07)",color:"#e2e8f0",fontSize:16,border:"none",cursor:"pointer"}}>+</button>
+                </div>
+                <div style={secLbl}>OBSERVAÇÃO (opcional)</div>
+                <textarea placeholder="Ex: Reposição voo SP-001..." value={mNote} onChange={e=>setMNote(e.target.value)} style={{width:"100%",background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.07)",borderRadius:8,padding:"8px 10px",color:"#e2e8f0",fontSize:12,marginBottom:14,resize:"none",height:46}}/>
+                <button onClick={handleMove} disabled={!mLoc} style={{width:"100%",padding:"13px",borderRadius:11,background:!mLoc?"rgba(255,255,255,.04)":modal.type==="entrada"?"#22c55e":"#ef4444",color:!mLoc?"#4a5568":"#fff",fontWeight:700,fontSize:14,fontFamily:"'Rajdhani',sans-serif",letterSpacing:1,border:"none",cursor:mLoc?"pointer":"default"}}>
+                  {!mLoc?"SELECIONE UM LOCAL":`CONFIRMAR ${modal.type==="entrada"?"ENTRADA":"SAÍDA"}`}
+                </button>
+                <button style={cancelBtn} onClick={()=>setModal(null)}>Cancelar</button>
+              </div>
+            </div>
+          )}
+
+          {/* ===== MODAL AJUSTE ===== */}
+          {adjM&&(
+            <div style={overlay} onClick={e=>e.target===e.currentTarget&&setAdjM(null)}>
+              <div style={sheet}>
+                <div style={handle}></div>
+                <div style={{fontSize:10,letterSpacing:2,color:"#94a3b8",textAlign:"center",marginBottom:4}}>✏ AJUSTAR ESTOQUE</div>
+                <div style={{fontFamily:"'Rajdhani',sans-serif",fontSize:17,fontWeight:600,color:"#e2e8f0",textAlign:"center",marginBottom:2}}>{adjM.name}</div>
+                <div style={{fontSize:11,color:"#4a5568",textAlign:"center",marginBottom:16}}>Atual: {adjM.stock===null?"não definido":adjM.stock}</div>
+                <div style={secLbl}>NOVO TOTAL EM ESTOQUE</div>
+                <div style={{display:"flex",alignItems:"center",gap:10,background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.07)",borderRadius:9,padding:"7px 10px",marginBottom:18}}>
+                  <button onClick={()=>setAdjQ(Math.max(0,adjQ-1))} style={{width:30,height:30,borderRadius:7,background:"rgba(255,255,255,.07)",color:"#e2e8f0",fontSize:16,border:"none",cursor:"pointer"}}>−</button>
+                  <input type="number" value={adjQ} onChange={e=>setAdjQ(Math.max(0,parseInt(e.target.value)||0))} style={{flex:1,background:"none",border:"none",color:"#e2e8f0",fontSize:22,fontWeight:700,fontFamily:"'Rajdhani',sans-serif",textAlign:"center"}}/>
+                  <button onClick={()=>setAdjQ(adjQ+1)} style={{width:30,height:30,borderRadius:7,background:"rgba(255,255,255,.07)",color:"#e2e8f0",fontSize:16,border:"none",cursor:"pointer"}}>+</button>
+                </div>
+                <button onClick={handleAdj} style={{width:"100%",padding:"13px",borderRadius:11,background:"#c9a84c",color:"#0b0f1a",fontWeight:700,fontSize:14,fontFamily:"'Rajdhani',sans-serif",letterSpacing:1,border:"none",cursor:"pointer"}}>SALVAR CONTAGEM</button>
+                <button style={cancelBtn} onClick={()=>setAdjM(null)}>Cancelar</button>
+              </div>
+            </div>
+          )}
+
+          {/* ===== MODAL EDITAR/ADICIONAR ITEM ===== */}
+          {itmM&&(
+            <div style={overlay} onClick={e=>e.target===e.currentTarget&&setItmM(null)}>
+              <div style={{...sheet,paddingBottom:40}}>
+                <div style={handle}></div>
+                <div style={{fontSize:10,letterSpacing:2,color:"#818cf8",textAlign:"center",marginBottom:4}}>{itmM==="new"?"➕ NOVO PRODUTO":"⚙ EDITAR PRODUTO"}</div>
+                <div style={{fontFamily:"'Rajdhani',sans-serif",fontSize:17,fontWeight:600,color:"#e2e8f0",textAlign:"center",marginBottom:16}}>{itmM==="new"?"Adicionar item":itmF.name||"Editar item"}</div>
+                {[["Nome do produto *","name","Ex: Refrigerante Limão"],["Marca","brand","Ex: Coca-Cola"],["Peso / Tamanho","size","Ex: 350ml ou 40g"],["Unidade","unit","Ex: PCT, CX (deixe vazio se não tiver)"]].map(([lbl,fld,ph])=>(
+                  <div key={fld} style={{marginBottom:12}}>
+                    <div style={secLbl}>{lbl}</div>
+                    <input placeholder={ph} value={itmF[fld]} onChange={e=>setItmF(f=>({...f,[fld]:e.target.value}))} style={{width:"100%",background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.1)",borderRadius:8,padding:"10px 12px",color:"#e2e8f0",fontSize:13}}/>
+                  </div>
+                ))}
+                <div style={{marginBottom:18}}>
+                  <div style={secLbl}>CATEGORIA</div>
+                  <div style={{display:"flex",gap:7}}>
+                    {["BEBIDAS","ALIMENTOS","MATERIAL"].map(t=>(
+                      <button key={t} onClick={()=>setItmF(f=>({...f,type:t}))} style={{flex:1,padding:"9px 6px",borderRadius:8,background:itmF.type===t?CAT_BG[t]:"rgba(255,255,255,.03)",border:`1px solid ${itmF.type===t?CAT_C[t]+"60":"rgba(255,255,255,.07)"}`,color:itmF.type===t?CAT_C[t]:"#4a5568",fontSize:10,fontWeight:600,cursor:"pointer"}}>{t}</button>
+                    ))}
+                  </div>
+                </div>
+                <button onClick={handleSaveItm} disabled={!itmF.name.trim()} style={{width:"100%",padding:"13px",borderRadius:11,background:itmF.name.trim()?"#6366f1":"rgba(255,255,255,.04)",color:itmF.name.trim()?"#fff":"#4a5568",fontWeight:700,fontSize:14,fontFamily:"'Rajdhani',sans-serif",letterSpacing:1,border:"none",cursor:itmF.name.trim()?"pointer":"default",marginBottom:8}}>
+                  {itmM==="new"?"ADICIONAR PRODUTO":"SALVAR ALTERAÇÕES"}
+                </button>
+                {itmM!=="new"&&<button onClick={()=>setDelC(itmM)} style={{width:"100%",padding:"10px",borderRadius:11,background:"rgba(248,113,113,.08)",border:"1px solid rgba(248,113,113,.2)",color:"#f87171",fontSize:12,cursor:"pointer",marginBottom:4}}>Excluir este produto</button>}
+                <button style={cancelBtn} onClick={()=>setItmM(null)}>Cancelar</button>
+              </div>
+            </div>
+          )}
+
+          {/* ===== CONFIRMAR EXCLUSÃO ===== */}
+          {delC&&(
+            <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.8)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:400,padding:20}}>
+              <div style={{background:"#111827",borderRadius:14,padding:22,width:"100%",maxWidth:320,border:"1px solid rgba(248,113,113,.3)",textAlign:"center"}}>
+                <div style={{fontSize:28,marginBottom:10}}>🗑️</div>
+                <div style={{fontSize:14,fontWeight:500,color:"#e2e8f0",marginBottom:6}}>Excluir produto?</div>
+                <div style={{fontSize:12,color:"#4a5568",marginBottom:20}}>"{delC.name}" será removido permanentemente.</div>
+                <div style={{display:"flex",gap:8}}>
+                  <button onClick={()=>setDelC(null)} style={{flex:1,padding:"11px",borderRadius:9,background:"rgba(255,255,255,.05)",border:"1px solid rgba(255,255,255,.08)",color:"#94a3b8",fontSize:13,cursor:"pointer"}}>Cancelar</button>
+                  <button onClick={handleDelItm} style={{flex:1,padding:"11px",borderRadius:9,background:"#ef4444",border:"none",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>Excluir</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ===== MODAL USUÁRIO ===== */}
+          {uModal&&(
+            <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:300,padding:20}}>
+              <div style={{background:"#111827",borderRadius:16,padding:24,width:"100%",maxWidth:340,border:"1px solid rgba(201,168,76,.28)"}}>
+                <div style={{fontFamily:"'Rajdhani',sans-serif",fontSize:22,fontWeight:700,color:"#c9a84c",textAlign:"center",marginBottom:4}}>✈ AVANTTO</div>
+                <div style={{fontSize:13,color:"#4a5568",textAlign:"center",marginBottom:20}}>Qual é o seu nome?</div>
+                <input autoFocus placeholder="Digite seu nome..." value={uName} onChange={e=>setUName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&uName.trim()&&saveUser()} style={{width:"100%",background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.1)",borderRadius:8,padding:"11px 13px",color:"#e2e8f0",fontSize:14,marginBottom:14}}/>
+                <button onClick={saveUser} disabled={!uName.trim()} style={{width:"100%",padding:"12px",borderRadius:10,background:uName.trim()?"#c9a84c":"rgba(255,255,255,.04)",color:uName.trim()?"#0b0f1a":"#4a5568",fontWeight:700,fontSize:14,border:"none",cursor:uName.trim()?"pointer":"default",fontFamily:"'Rajdhani',sans-serif",letterSpacing:1}}>ENTRAR</button>
+                {user&&<button style={cancelBtn} onClick={()=>setUModal(false)}>Cancelar</button>}
+              </div>
+            </div>
+          )}
+
+          {/* ===== TOAST ===== */}
+          {toast&&<div style={{position:"fixed",bottom:24,left:"50%",transform:"translateX(-50%)",background:toast.ok?"rgba(34,197,94,.95)":"rgba(239,68,68,.95)",color:"#fff",padding:"10px 18px",borderRadius:20,fontSize:12,fontWeight:500,zIndex:999,whiteSpace:"nowrap",boxShadow:"0 4px 20px rgba(0,0,0,.4)"}}>{toast.msg}</div>}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+  </script>
+</body>
+</html>
