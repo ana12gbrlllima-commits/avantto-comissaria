@@ -28,9 +28,7 @@
 
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-  <script type="module">
+<script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
     import { getFirestore, doc, setDoc, onSnapshot, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
     const firebaseConfig = {
@@ -785,5 +783,2985 @@
 
     ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
   </script>
+</body>
+</html>
+  <!-- React (UMD - sem precisar de Babel) -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+
+  <!-- Firebase compat (sem module, sem timing issue) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <script>
+    try {
+      const app = firebase.initializeApp({
+        apiKey:"AIzaSyCa9L8_0a2to58o1x_eZMNyGvxlFw8lXTY",
+        authDomain:"avantto-comissaria.firebaseapp.com",
+        projectId:"avantto-comissaria",
+        storageBucket:"avantto-comissaria.firebasestorage.app",
+        messagingSenderId:"682125810550",
+        appId:"1:682125810550:web:3a3302b4bdf32c101b7857"
+      });
+      const db = firebase.firestore();
+      // Expose helpers using compat API
+      window._db = db;
+      window._doc = (db, col, docId) => db.collection(col).doc(docId);
+      window._setDoc = (ref, data) => ref.set(data);
+      window._onSnapshot = (ref, cb, err) => ref.onSnapshot(cb, err);
+      window._getDoc = (ref) => ref.get();
+      window._fbReady = true;
+    } catch(e) {
+      window._fbError = e.message;
+      window._fbReady = true;
+    }
+  </script>
+
+  <script>
+const {
+  useState,
+  useEffect
+} = React;
+const LOCS = ["Armário", "Sala VIP", "Geladeira Pilotos", "Cestinha"];
+const LOC_C = {
+  "Armário": {
+    c: "#94a3b8",
+    bg: "rgba(148,163,184,.18)"
+  },
+  "Sala VIP": {
+    c: "#c084fc",
+    bg: "rgba(192,132,252,.18)"
+  },
+  "Geladeira Pilotos": {
+    c: "#38bdf8",
+    bg: "rgba(56,189,248,.18)"
+  },
+  "Cestinha": {
+    c: "#c9a84c",
+    bg: "rgba(201,168,76,.18)"
+  }
+};
+const CATS = ["TODOS", "BEBIDAS", "ALIMENTOS", "MATERIAL"];
+const CAT_C = {
+  BEBIDAS: "#38bdf8",
+  ALIMENTOS: "#facc15",
+  MATERIAL: "#94a3b8"
+};
+const CAT_BG = {
+  BEBIDAS: "rgba(56,189,248,.12)",
+  ALIMENTOS: "rgba(250,204,21,.12)",
+  MATERIAL: "rgba(148,163,184,.12)"
+};
+const EMPT_L = {
+  "Armário": 0,
+  "Sala VIP": 0,
+  "Geladeira Pilotos": 0,
+  "Cestinha": 0
+};
+const INIT = [{
+  id: 1,
+  name: "Água S/ Gás",
+  brand: "Petropolis Paulista",
+  size: "310ml",
+  type: "BEBIDAS",
+  stock: 264
+}, {
+  id: 2,
+  name: "Água C/ Gás",
+  brand: "Petropolis Paulista",
+  size: "310ml",
+  type: "BEBIDAS",
+  stock: 360
+}, {
+  id: 3,
+  name: "Refrigerante Coca-Cola",
+  brand: "Coca-Cola",
+  size: "250ml",
+  type: "BEBIDAS",
+  stock: 120
+}, {
+  id: 4,
+  name: "Refrigerante Coca-Cola Zero",
+  brand: "Coca-Cola Zero",
+  size: "250ml",
+  type: "BEBIDAS",
+  stock: 72
+}, {
+  id: 5,
+  name: "Refrigerante Guaraná",
+  brand: "Guaraná",
+  size: "200ml",
+  type: "BEBIDAS",
+  stock: 36
+}, {
+  id: 6,
+  name: "Refrigerante Guaraná Zero",
+  brand: "Guaraná Zero",
+  size: "200ml",
+  type: "BEBIDAS",
+  stock: 0
+}, {
+  id: 7,
+  name: "Energético Red Bull",
+  brand: "Red Bull",
+  size: "250ml",
+  type: "BEBIDAS",
+  stock: 12
+}, {
+  id: 8,
+  name: "Refrigerante Del Valle",
+  brand: "Del Valle",
+  size: "290ml",
+  type: "BEBIDAS",
+  stock: 3
+}, {
+  id: 9,
+  name: "Energético Red Bull Zero",
+  brand: "Red Bull Zero",
+  size: "250ml",
+  type: "BEBIDAS",
+  stock: 32
+}, {
+  id: 10,
+  name: "Suco de Maçã",
+  brand: "Natural One",
+  size: "180ml",
+  type: "BEBIDAS",
+  stock: 84
+}, {
+  id: 11,
+  name: "Suco Uva, Pera e Maçã",
+  brand: "Natural One",
+  size: "180ml",
+  type: "BEBIDAS",
+  stock: 0
+}, {
+  id: 12,
+  name: "Suco de Uva",
+  brand: "Natural One",
+  size: "180ml",
+  type: "BEBIDAS",
+  stock: 42
+}, {
+  id: 13,
+  name: "Suco de Laranja",
+  brand: "Natural One",
+  size: "180ml",
+  type: "BEBIDAS",
+  stock: 42
+}, {
+  id: 14,
+  name: "Água de Coco",
+  brand: "Sococo",
+  size: "200ml",
+  type: "BEBIDAS",
+  stock: 0
+}, {
+  id: 15,
+  name: "Vinho Branco",
+  brand: "La Pastina",
+  size: "750ml",
+  type: "BEBIDAS",
+  stock: 5
+}, {
+  id: 16,
+  name: "Vinho Verde",
+  brand: "Casal Mendes",
+  size: "750ml",
+  type: "BEBIDAS",
+  stock: 2
+}, {
+  id: 17,
+  name: "Whisky",
+  brand: "Johnnie Walker",
+  size: "750ml",
+  type: "BEBIDAS",
+  stock: 5
+}, {
+  id: 18,
+  name: "Champagne",
+  brand: "Perrier Jouet",
+  size: "750ml",
+  type: "BEBIDAS",
+  stock: 2
+}, {
+  id: 19,
+  name: "Cerveja Lata",
+  brand: "Heineken",
+  size: "350ml",
+  type: "BEBIDAS",
+  stock: 48
+}, {
+  id: 20,
+  name: "Chá Gelado Pêssego",
+  brand: "Ice Tea Leão",
+  size: "450ml",
+  type: "BEBIDAS",
+  stock: 20
+}, {
+  id: 21,
+  name: "Chá Gelado Limão",
+  brand: "Ice Tea Leão",
+  size: "450ml",
+  type: "BEBIDAS",
+  stock: 9
+}, {
+  id: 22,
+  name: "Chá Gelado Lata Limão",
+  brand: "Ice Tea Leão",
+  size: "290ml",
+  type: "BEBIDAS",
+  stock: 6
+}, {
+  id: 23,
+  name: "Café",
+  brand: "Pilão",
+  size: "500g",
+  type: "BEBIDAS",
+  stock: 2
+}, {
+  id: 24,
+  name: "Chá English Breakfast",
+  brand: "Twinings",
+  size: "20g",
+  type: "BEBIDAS",
+  stock: 3,
+  unit: "CX"
+}, {
+  id: 25,
+  name: "Chá Té Verde",
+  brand: "Twinings",
+  size: "20g",
+  type: "BEBIDAS",
+  stock: 0,
+  unit: "CX"
+}, {
+  id: 26,
+  name: "Chá Hortelã",
+  brand: "Twinings",
+  size: "20g",
+  type: "BEBIDAS",
+  stock: 0,
+  unit: "CX"
+}, {
+  id: 27,
+  name: "Chá Limón y Lengibre",
+  brand: "Twinings",
+  size: "20g",
+  type: "BEBIDAS",
+  stock: 0,
+  unit: "CX"
+}, {
+  id: 28,
+  name: "Chá Early Grey",
+  brand: "Twinings",
+  size: "20g",
+  type: "BEBIDAS",
+  stock: 1,
+  unit: "CX"
+}, {
+  id: 29,
+  name: "Chá Laranja e Manga",
+  brand: "Twinings",
+  size: "20g",
+  type: "BEBIDAS",
+  stock: 0,
+  unit: "CX"
+}, {
+  id: 30,
+  name: "Chá Maçanã",
+  brand: "Twinings",
+  size: "20g",
+  type: "BEBIDAS",
+  stock: 0,
+  unit: "CX"
+}, {
+  id: 31,
+  name: "Pipoca Salgada",
+  brand: "Andorinha",
+  size: "20g",
+  type: "ALIMENTOS",
+  stock: null
+}, {
+  id: 32,
+  name: "Pipoca Manteiga",
+  brand: "Aviação",
+  size: "36g",
+  type: "ALIMENTOS",
+  stock: null
+}, {
+  id: 33,
+  name: "Pipoca Azeite e Ervas",
+  brand: "Aviação",
+  size: "20g",
+  type: "ALIMENTOS",
+  stock: null
+}, {
+  id: 34,
+  name: "Pipoca Lemon Pepper",
+  brand: "Aviação",
+  size: "36g",
+  type: "ALIMENTOS",
+  stock: null
+}, {
+  id: 35,
+  name: "Pipoca Chocolate",
+  brand: "Aviação",
+  size: "100g",
+  type: "ALIMENTOS",
+  stock: 0
+}, {
+  id: 36,
+  name: "Pipoca Caramelo",
+  brand: "Aviação",
+  size: "90g",
+  type: "ALIMENTOS",
+  stock: 0
+}, {
+  id: 37,
+  name: "Batata Original",
+  brand: "Pringles",
+  size: "35g",
+  type: "ALIMENTOS",
+  stock: 36
+}, {
+  id: 38,
+  name: "Chips Original",
+  brand: "Roots to Go",
+  size: "45g",
+  type: "ALIMENTOS",
+  stock: 20
+}, {
+  id: 39,
+  name: "Chips de Pipoca",
+  brand: "Roots to Go",
+  size: "35g",
+  type: "ALIMENTOS",
+  stock: 0
+}, {
+  id: 40,
+  name: "Chips Sweet Potato",
+  brand: "Roots to Go",
+  size: "45g",
+  type: "ALIMENTOS",
+  stock: 20
+}, {
+  id: 41,
+  name: "Chips Queijo Nacho",
+  brand: "Roots to Go",
+  size: "35g",
+  type: "ALIMENTOS",
+  stock: 10
+}, {
+  id: 42,
+  name: "Biscoito",
+  brand: "Club Social",
+  size: "114g",
+  type: "ALIMENTOS",
+  stock: 3,
+  unit: "PCT"
+}, {
+  id: 43,
+  name: "Biscoito Integral",
+  brand: "Club Social",
+  size: "114g",
+  type: "ALIMENTOS",
+  stock: 3,
+  unit: "PCT"
+}, {
+  id: 44,
+  name: "Amendoim Japonês",
+  brand: "Dori",
+  size: "70g",
+  type: "ALIMENTOS",
+  stock: 50
+}, {
+  id: 45,
+  name: "Torrone",
+  brand: "Montevérgine",
+  size: "90g",
+  type: "ALIMENTOS",
+  stock: 0
+}, {
+  id: 46,
+  name: "Nuts",
+  brand: "Banana Brasil",
+  size: "25g",
+  type: "ALIMENTOS",
+  stock: null
+}, {
+  id: 47,
+  name: "Barra Supino Zero",
+  brand: "Banana Brasil",
+  size: "24g",
+  type: "ALIMENTOS",
+  stock: 40
+}, {
+  id: 48,
+  name: "Biscoito Oreo",
+  brand: "Oreo Original",
+  size: "35g",
+  type: "ALIMENTOS",
+  stock: 24,
+  unit: "PCT"
+}, {
+  id: 49,
+  name: "Biscoito Cookie",
+  brand: "Toddy",
+  size: "47g",
+  type: "ALIMENTOS",
+  stock: 20
+}, {
+  id: 50,
+  name: "Chocolate Twix",
+  brand: "Twix",
+  size: "40g",
+  type: "ALIMENTOS",
+  stock: 0
+}, {
+  id: 51,
+  name: "Kit Kat",
+  brand: "Nestlé",
+  size: "41,5g",
+  type: "ALIMENTOS",
+  stock: 25
+}, {
+  id: 52,
+  name: "Chocolate Snickers",
+  brand: "Snickers",
+  size: "45g",
+  type: "ALIMENTOS",
+  stock: 0
+}, {
+  id: 53,
+  name: "Talento Avelã",
+  brand: "Garoto",
+  size: "25g",
+  type: "ALIMENTOS",
+  stock: 25
+}, {
+  id: 54,
+  name: "Queijo Cremoso",
+  brand: "Polenguinho",
+  size: "17g",
+  type: "ALIMENTOS",
+  stock: 50
+}, {
+  id: 55,
+  name: "Biscoito Leite com Mel",
+  brand: "Belvita",
+  size: "75g",
+  type: "ALIMENTOS",
+  stock: 10,
+  unit: "PCT"
+}, {
+  id: 56,
+  name: "Biscoito Maçã e Canela",
+  brand: "Belvita",
+  size: "25g",
+  type: "ALIMENTOS",
+  stock: 0
+}, {
+  id: 57,
+  name: "Chiclete Hortelã",
+  brand: "Trident",
+  size: "8g",
+  type: "ALIMENTOS",
+  stock: 25
+}, {
+  id: 58,
+  name: "Chiclete Tutti Frutti",
+  brand: "Trident",
+  size: "8g",
+  type: "ALIMENTOS",
+  stock: 25
+}, {
+  id: 59,
+  name: "Bala Laranja",
+  brand: "Tic Tac",
+  size: "14,5g",
+  type: "ALIMENTOS",
+  stock: 25
+}, {
+  id: 60,
+  name: "Bala Menta",
+  brand: "Tic Tac",
+  size: "14,5g",
+  type: "ALIMENTOS",
+  stock: 25
+}, {
+  id: 61,
+  name: "Bala Mentos",
+  brand: "Mentos",
+  size: "37,5g",
+  type: "ALIMENTOS",
+  stock: 10
+}, {
+  id: 62,
+  name: "Bala Leite",
+  brand: "Butter Toffees",
+  size: "10g",
+  type: "ALIMENTOS",
+  stock: 2,
+  unit: "PCT"
+}, {
+  id: 63,
+  name: "Bala Chocolate",
+  brand: "Butter Toffees",
+  size: "10g",
+  type: "ALIMENTOS",
+  stock: 2,
+  unit: "PCT"
+}, {
+  id: 64,
+  name: "Biscoito Maltado",
+  brand: "Piraquê",
+  size: "80g",
+  type: "ALIMENTOS",
+  stock: 50
+}, {
+  id: 65,
+  name: "Newafer Chocolate",
+  brand: "Piraquê",
+  size: "100g",
+  type: "ALIMENTOS",
+  stock: 0
+}, {
+  id: 66,
+  name: "Newafer Limão",
+  brand: "Piraquê",
+  size: "100g",
+  type: "ALIMENTOS",
+  stock: 6
+}, {
+  id: 67,
+  name: "Bolinho de Laranja",
+  brand: "Casa Suiça",
+  size: "40g",
+  type: "ALIMENTOS",
+  stock: 0
+}, {
+  id: 68,
+  name: "Bolinho de Chocolate",
+  brand: "Bauducco",
+  size: "40g",
+  type: "ALIMENTOS",
+  stock: 25
+}, {
+  id: 69,
+  name: "Bolinho Duo Chocolate",
+  brand: "Bauducco",
+  size: "27g",
+  type: "ALIMENTOS",
+  stock: 25
+}, {
+  id: 70,
+  name: "Bananinha Tradicional",
+  brand: "Paraíbuna",
+  size: "36g",
+  type: "ALIMENTOS",
+  stock: 0
+}, {
+  id: 71,
+  name: "Bananinha S/ Açúcar",
+  brand: "Paraíbuna",
+  size: "23g",
+  type: "ALIMENTOS",
+  stock: 0
+}, {
+  id: 72,
+  name: "Bananinha Zero Açúcar",
+  brand: "Oliveira",
+  size: "22g",
+  type: "ALIMENTOS",
+  stock: 50
+}, {
+  id: 73,
+  name: "Barra Pé de Moleque",
+  brand: "Banana Brasil",
+  size: "20g",
+  type: "ALIMENTOS",
+  stock: 27
+}, {
+  id: 74,
+  name: "Pé de Moleque",
+  brand: "Yoki",
+  size: "17g",
+  type: "ALIMENTOS",
+  stock: 0
+}, {
+  id: 75,
+  name: "Amendoim Torrado",
+  brand: "Dori",
+  size: "70g",
+  type: "ALIMENTOS",
+  stock: null
+}, {
+  id: 76,
+  name: "Paçoquinha",
+  brand: "Dadinho",
+  size: "20g",
+  type: "ALIMENTOS",
+  stock: null
+}, {
+  id: 77,
+  name: "Goiabinha",
+  brand: "Piraquê",
+  size: "75g",
+  type: "ALIMENTOS",
+  stock: null
+}, {
+  id: 78,
+  name: "Barra Nuts Cacau",
+  brand: "Nutry",
+  size: "25g",
+  type: "ALIMENTOS",
+  stock: 30
+}, {
+  id: 79,
+  name: "Barra Nuts Cranberry",
+  brand: "Nutry",
+  size: "25g",
+  type: "ALIMENTOS",
+  stock: 30
+}, {
+  id: 80,
+  name: "Mini Alfajor",
+  brand: "Odara",
+  size: "25g",
+  type: "ALIMENTOS",
+  stock: 0
+}, {
+  id: 81,
+  name: "Biscoito de Arroz",
+  brand: "Fit Food",
+  size: "60g",
+  type: "ALIMENTOS",
+  stock: 0
+}, {
+  id: 82,
+  name: "Copos Café",
+  brand: "",
+  size: "",
+  type: "MATERIAL",
+  stock: null,
+  unit: "PCT"
+}, {
+  id: 83,
+  name: "Copos Médio",
+  brand: "",
+  size: "",
+  type: "MATERIAL",
+  stock: null,
+  unit: "PCT"
+}, {
+  id: 84,
+  name: "Copos Grande",
+  brand: "",
+  size: "",
+  type: "MATERIAL",
+  stock: null,
+  unit: "PCT"
+}, {
+  id: 85,
+  name: "Papel Toalha",
+  brand: "",
+  size: "",
+  type: "MATERIAL",
+  stock: null,
+  unit: "PCT"
+}, {
+  id: 86,
+  name: "Guardanapo",
+  brand: "",
+  size: "",
+  type: "MATERIAL",
+  stock: null,
+  unit: "PCT"
+}, {
+  id: 87,
+  name: "Filtro de Café",
+  brand: "",
+  size: "",
+  type: "MATERIAL",
+  stock: 1,
+  unit: "PCT"
+}];
+function migrate(i) {
+  if (i.locations) return i;
+  const s = i.stock ?? 0;
+  return {
+    ...i,
+    locations: {
+      ...EMPT_L,
+      "Armário": s
+    }
+  };
+}
+function total(i) {
+  return Object.values(i.locations || {}).reduce((a, b) => a + (b || 0), 0);
+}
+function getStatus(i) {
+  const s = total(i);
+  if (!i.locations && i.stock === null) return {
+    label: "A confirmar",
+    color: "#94a3b8",
+    bg: "rgba(148,163,184,.15)",
+    dot: "#94a3b8"
+  };
+  if (s === 0) return {
+    label: "Esgotado",
+    color: "#f87171",
+    bg: "rgba(248,113,113,.15)",
+    dot: "#ef4444"
+  };
+  if (s <= 5) return {
+    label: "Crítico",
+    color: "#fb923c",
+    bg: "rgba(251,146,60,.15)",
+    dot: "#f97316"
+  };
+  if (s <= 15) return {
+    label: "Necessário",
+    color: "#c084fc",
+    bg: "rgba(192,132,252,.15)",
+    dot: "#a855f7"
+  };
+  return {
+    label: "Em estoque",
+    color: "#4ade80",
+    bg: "rgba(74,222,128,.15)",
+    dot: "#22c55e"
+  };
+}
+function fmtTs(ts) {
+  if (!ts) return "";
+  return new Date(ts).toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+function validadeStatus(v) {
+  if (!v) return null;
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  const val = new Date(v + "T00:00:00");
+  const diff = Math.floor((val - hoje) / (1000 * 60 * 60 * 24));
+  if (diff < 0) return {
+    label: "VENCIDO",
+    color: "#f87171",
+    bg: "rgba(248,113,113,.18)",
+    dot: "#ef4444",
+    dias: diff
+  };
+  if (diff <= 7) return {
+    label: "VENCE EM " + diff + "D",
+    color: "#fb923c",
+    bg: "rgba(251,146,60,.18)",
+    dot: "#f97316",
+    dias: diff
+  };
+  if (diff <= 30) return {
+    label: "VENCE EM " + diff + "D",
+    color: "#facc15",
+    bg: "rgba(250,204,21,.15)",
+    dot: "#ca8a04",
+    dias: diff
+  };
+  return {
+    label: "Válido",
+    color: "#4ade80",
+    bg: "rgba(74,222,128,.12)",
+    dot: "#22c55e",
+    dias: diff
+  };
+}
+function fmtValidade(v) {
+  if (!v) return "";
+  const [y, m, d] = v.split("-");
+  return `${d}/${m}/${y}`;
+}
+function App() {
+  const [items, setItems] = useState(INIT.map(migrate));
+  const [movs, setMovs] = useState([]);
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [fbErr, setFbErr] = useState(null);
+  const [savedNames, setSavedNames] = useState([]);
+  const [view, setView] = useState("items");
+  const [cat, setCat] = useState("TODOS");
+  const [stF, setStF] = useState("Todos");
+  const [locF, setLocF] = useState("Todos");
+  const [search, setSearch] = useState("");
+  const [modal, setModal] = useState(null);
+  const [mLoc, setMLoc] = useState("");
+  const [mQty, setMQty] = useState(1);
+  const [mNote, setMNote] = useState("");
+  const [adjM, setAdjM] = useState(null);
+  const [adjLoc, setAdjLoc] = useState("Armário");
+  const [adjQ, setAdjQ] = useState(0);
+  const [itmM, setItmM] = useState(null);
+  const [itmF, setItmF] = useState({
+    name: "",
+    brand: "",
+    size: "",
+    type: "BEBIDAS",
+    unit: "",
+    validade: ""
+  });
+  const [delC, setDelC] = useState(null);
+  const [uModal, setUModal] = useState(false);
+  const [uName, setUName] = useState("");
+  const [toast, setToast] = useState(null);
+  useEffect(() => {
+    const saved = localStorage.getItem("avantto-user");
+    if (saved) setUser(saved);else setUModal(true);
+    const setup = () => {
+      if (window._fbError) {
+        setFbErr(window._fbError);
+        setLoading(false);
+        return () => {};
+      }
+      if (!window._db) {
+        setFbErr("Firebase não inicializou. Verifique as credenciais.");
+        setLoading(false);
+        return () => {};
+      }
+      window._getDoc(window._doc(window._db, "comissaria", "users")).then(s => {
+        if (s.exists()) setSavedNames(s.data().list || []);
+      }).catch(() => {});
+      const unsubI = window._onSnapshot(window._doc(window._db, "comissaria", "items"), snap => {
+        if (snap.exists()) {
+          const sv = snap.data().list || [];
+          setItems(INIT.map(i => {
+            const f = sv.find(s => s.id === i.id);
+            return f ? migrate(f) : migrate(i);
+          }));
+        }
+        setLoading(false);
+      }, err => {
+        setFbErr(err.message);
+        setLoading(false);
+      });
+      const unsubM = window._onSnapshot(window._doc(window._db, "comissaria", "movements"), snap => {
+        if (snap.exists()) setMovs(snap.data().list || []);
+      });
+      return () => {
+        unsubI();
+        unsubM();
+      };
+    };
+    let cleanup;
+    if (window._fbReady) {
+      // Firebase já carregou antes do React — roda direto
+      cleanup = setup();
+    } else {
+      // Firebase ainda carregando — aguarda o evento
+      const h = () => {
+        cleanup = setup();
+      };
+      window.addEventListener("fbReady", h, {
+        once: true
+      });
+      // Segurança: se demorar mais de 8s, mostra erro
+      const timeout = setTimeout(() => {
+        window.removeEventListener("fbReady", h);
+        setFbErr("Tempo esgotado. Verifique sua conexão com a internet e recarregue.");
+        setLoading(false);
+      }, 8000);
+      return () => {
+        clearTimeout(timeout);
+        window.removeEventListener("fbReady", h);
+        if (cleanup) cleanup();
+      };
+    }
+    return () => {
+      if (cleanup) cleanup();
+    };
+  }, []);
+  const showToast = (msg, ok = true) => {
+    setToast({
+      msg,
+      ok
+    });
+    setTimeout(() => setToast(null), 2800);
+  };
+  const saveItems = async nx => {
+    setItems(nx);
+    await window._setDoc(window._doc(window._db, "comissaria", "items"), {
+      list: nx
+    });
+  };
+  const saveMovs = async nx => {
+    const sl = nx.slice(-300);
+    setMovs(sl);
+    await window._setDoc(window._doc(window._db, "comissaria", "movements"), {
+      list: sl
+    });
+  };
+  const handleMove = async () => {
+    if (!modal) return;
+    const {
+      item,
+      type
+    } = modal;
+    const qty = Math.max(1, parseInt(mQty) || 1),
+      ts = Date.now();
+    const locs = {
+      ...item.locations
+    };
+    const before = total(item);
+    if (type === "entrada") {
+      // Nova compra: entra no Armário sempre
+      locs["Armário"] = (locs["Armário"] || 0) + qty;
+    } else if (type === "transferir") {
+      // Move do Armário para outro local — total não muda
+      if (!mLoc) return;
+      const dispArmario = locs["Armário"] || 0;
+      const real = Math.min(qty, dispArmario);
+      locs["Armário"] = dispArmario - real;
+      locs[mLoc] = (locs[mLoc] || 0) + real;
+    } else {
+      // Saída: produto consumido — sai do local escolhido
+      if (!mLoc) return;
+      locs[mLoc] = Math.max(0, (locs[mLoc] || 0) - qty);
+    }
+    const after = Object.values(locs).reduce((a, b) => a + (b || 0), 0);
+    const actionLabel = type === "entrada" ? "Entrada · Armário" : type === "transferir" ? `Transferido → ${mLoc}` : `Saída · ${mLoc}`;
+    const nx = items.map(i => i.id === item.id ? {
+      ...i,
+      locations: locs,
+      lastBy: user,
+      lastAt: ts,
+      lastAction: actionLabel
+    } : i);
+    const mv = {
+      id: ts,
+      itemId: item.id,
+      itemName: item.name,
+      brand: item.brand,
+      type,
+      qty,
+      loc: type === "entrada" ? "Armário" : mLoc,
+      user,
+      ts,
+      before,
+      after,
+      note: mNote
+    };
+    await saveItems(nx);
+    await saveMovs([...movs, mv]);
+    setModal(null);
+    setMLoc("");
+    setMQty(1);
+    setMNote("");
+    const msg = type === "entrada" ? `+${qty} no Armário — ${item.name}` : type === "transferir" ? `Transferido para ${mLoc} — ${item.name}` : `Saída de ${mLoc} — ${item.name}`;
+    showToast(msg);
+  };
+  const handleAdj = async () => {
+    if (!adjM) return;
+    const qty = Math.max(0, parseInt(adjQ) || 0),
+      ts = Date.now();
+    const locs = {
+      ...adjM.locations,
+      [adjLoc]: qty
+    };
+    const before = total(adjM),
+      after = Object.values(locs).reduce((a, b) => a + (b || 0), 0);
+    const nx = items.map(i => i.id === adjM.id ? {
+      ...i,
+      locations: locs,
+      lastBy: user,
+      lastAt: ts,
+      lastAction: `Ajuste · ${adjLoc}`
+    } : i);
+    const mv = {
+      id: ts,
+      itemId: adjM.id,
+      itemName: adjM.name,
+      brand: adjM.brand,
+      type: "ajuste",
+      qty,
+      loc: adjLoc,
+      user,
+      ts,
+      before,
+      after,
+      note: `Ajuste ${adjLoc}`
+    };
+    await saveItems(nx);
+    await saveMovs([...movs, mv]);
+    setAdjM(null);
+    showToast(`Ajuste salvo — ${adjM.name}`);
+  };
+  const openItm = item => {
+    if (item === "new") setItmF({
+      name: "",
+      brand: "",
+      size: "",
+      type: "BEBIDAS",
+      unit: "",
+      validade: ""
+    });else setItmF({
+      name: item.name,
+      brand: item.brand || "",
+      size: item.size || "",
+      type: item.type,
+      unit: item.unit || "",
+      validade: item.validade || ""
+    });
+    setItmM(item);
+  };
+  const handleSaveItm = async () => {
+    if (!itmF.name.trim()) return;
+    const ts = Date.now();
+    let nx;
+    if (itmM === "new") {
+      nx = [...items, {
+        id: ts,
+        ...itmF,
+        locations: {
+          ...EMPT_L
+        },
+        lastBy: user,
+        lastAt: ts,
+        lastAction: "Criado"
+      }];
+      showToast(`"${itmF.name}" adicionado!`);
+    } else {
+      nx = items.map(i => i.id === itmM.id ? {
+        ...i,
+        ...itmF,
+        lastBy: user,
+        lastAt: ts,
+        lastAction: "Editado"
+      } : i);
+      showToast(`"${itmF.name}" atualizado!`);
+    }
+    await saveItems(nx);
+    setItmM(null);
+  };
+  const handleDelItm = async () => {
+    if (!delC) return;
+    await saveItems(items.filter(i => i.id !== delC.id));
+    setDelC(null);
+    setItmM(null);
+    showToast("Item removido.");
+  };
+  const saveUser = async () => {
+    if (!uName.trim()) return;
+    const name = uName.trim();
+    localStorage.setItem("avantto-user", name);
+    setUser(name);
+    setUModal(false);
+    setUName("");
+    const upd = savedNames.includes(name) ? savedNames : [...savedNames, name];
+    setSavedNames(upd);
+    try {
+      await window._setDoc(window._doc(window._db, "comissaria", "users"), {
+        list: upd
+      });
+    } catch (e) {}
+  };
+  const rptWhats = () => {
+    const now = new Date().toLocaleString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+    const esg = items.filter(i => getStatus(i).label === "Esgotado");
+    const crt = items.filter(i => getStatus(i).label === "Crítico");
+    const nec = items.filter(i => getStatus(i).label === "Necessário");
+    let t = `✈ *AVANTTO — Checklist Comissaria*\n📅 ${now}\n👤 ${user || "—"}\n\n`;
+    if (esg.length) {
+      t += `🔴 *ESGOTADOS (${esg.length})*\n`;
+      esg.forEach(i => {
+        t += `• ${i.name}${i.brand ? ` (${i.brand})` : ""} — 0 unid.\n`;
+      });
+      t += "\n";
+    }
+    if (crt.length) {
+      t += `🟠 *CRÍTICO — PEDIR URGENTE (${crt.length})*\n`;
+      crt.forEach(i => {
+        t += `• ${i.name}${i.brand ? ` (${i.brand})` : ""} — ${total(i)} unid.\n`;
+      });
+      t += "\n";
+    }
+    if (nec.length) {
+      t += `🟡 *NECESSÁRIO (${nec.length})*\n`;
+      nec.forEach(i => {
+        t += `• ${i.name}${i.brand ? ` (${i.brand})` : ""} — ${total(i)} unid.\n`;
+      });
+      t += "\n";
+    }
+    if (!esg.length && !crt.length && !nec.length) t += `✅ Todos os produtos em estoque!\n`;
+    // Validade warnings
+    const vencidos = items.filter(i => i.validade && validadeStatus(i.validade) && validadeStatus(i.validade).dias < 0);
+    const vencendo = items.filter(i => i.validade && validadeStatus(i.validade) && validadeStatus(i.validade).dias >= 0 && validadeStatus(i.validade).dias <= 7);
+    if (vencidos.length) {
+      t += `\n🚨 *PRODUTOS VENCIDOS (${vencidos.length})*\n`;
+      vencidos.forEach(i => {
+        t += `• ${i.name} — VENCIDO em ${fmtValidade(i.validade)}\n`;
+      });
+      t += "\n";
+    }
+    if (vencendo.length) {
+      t += `⏰ *VENCENDO EM 7 DIAS (${vencendo.length})*\n`;
+      vencendo.forEach(i => {
+        t += `• ${i.name} — ${fmtValidade(i.validade)} (${validadeStatus(i.validade).label})\n`;
+      });
+      t += "\n";
+    }
+    return t + `\n_Enviado via App Comissaria Avantto_`;
+  };
+  const rptCompleto = () => {
+    const now = new Date().toLocaleString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+    const mes = new Date().toLocaleString("pt-BR", {
+      month: "long",
+      year: "numeric"
+    }).toUpperCase();
+    let t = `📋 *RELATÓRIO DE ESTOQUE — AVANTTO*\n📅 ${now} · ${mes}\n👤 ${user || "—"}\n${"─".repeat(35)}\n\n`;
+    ["BEBIDAS", "ALIMENTOS", "MATERIAL"].forEach(tp => {
+      t += `*${tp}*\n`;
+      items.filter(i => i.type === tp).forEach(i => {
+        const st = getStatus(i),
+          tot = total(i);
+        const ic = st.label === "Em estoque" ? "✅" : st.label === "Esgotado" ? "🔴" : st.label === "Crítico" ? "🟠" : st.label === "Necessário" ? "🟡" : "⚪";
+        const vs2 = i.validade ? validadeStatus(i.validade) : null;
+        const vstr = vs2 ? vs2.dias < 0 ? ` ⚠ VENCIDO(${fmtValidade(i.validade)})` : vs2.dias <= 30 ? ` 📅 Val:${fmtValidade(i.validade)}` : "" : "";
+        t += `${ic} ${i.name}${i.brand ? " — " + i.brand : ""}: ${tot} ${i.unit || "unid"}${vstr}\n`;
+        if (i.locations) {
+          const lp = LOCS.filter(l => (i.locations[l] || 0) > 0).map(l => `${l}: ${i.locations[l]}`);
+          if (lp.length) t += `   (${lp.join(" | ")})\n`;
+        }
+      });
+      t += "\n";
+    });
+    const ok = items.filter(i => getStatus(i).label === "Em estoque").length;
+    const lw = items.filter(i => ["Necessário", "Crítico"].includes(getStatus(i).label)).length;
+    const ou = items.filter(i => getStatus(i).label === "Esgotado").length;
+    t += `${"─".repeat(35)}\nTotal: ${items.length} | ✅ ${ok} | 🟡 ${lw} baixo | 🔴 ${ou} esgotado\n_Relatório gerado pelo App Comissaria Avantto_`;
+    return t;
+  };
+  const copiar = (txt, msg) => navigator.clipboard.writeText(txt).then(() => showToast(msg)).catch(() => showToast("Erro ao copiar", false));
+  const filtered = items.filter(i => {
+    if (cat !== "TODOS" && i.type !== cat) return false;
+    if (stF !== "Todos") {
+      const lb = getStatus(i).label;
+      if (stF === "Necessário" && !["Necessário", "Crítico"].includes(lb)) return false;
+      if (stF !== "Necessário" && lb !== stF) return false;
+    }
+    if (locF !== "Todos") {
+      if (!i.locations || (i.locations[locF] || 0) === 0) return false;
+    }
+    if (search) {
+      const q = search.toLowerCase();
+      if (!i.name.toLowerCase().includes(q) && !(i.brand || "").toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
+  const alerts = items.filter(i => ["Esgotado", "Crítico", "Necessário"].includes(getStatus(i).label)).sort((a, b) => total(a) - total(b));
+  const totOk = items.filter(i => getStatus(i).label === "Em estoque").length;
+  const totLw = items.filter(i => ["Necessário", "Crítico"].includes(getStatus(i).label)).length;
+  const totOut = items.filter(i => getStatus(i).label === "Esgotado").length;
+  const OV = {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(0,0,0,.72)",
+    display: "flex",
+    alignItems: "flex-end",
+    zIndex: 200,
+    backdropFilter: "blur(6px)"
+  };
+  const SH = {
+    width: "100%",
+    background: "#111827",
+    borderRadius: "18px 18px 0 0",
+    padding: "20px 18px 30px",
+    maxHeight: "85vh",
+    overflowY: "auto"
+  };
+  const HDL = {
+    width: 36,
+    height: 3,
+    background: "rgba(255,255,255,.15)",
+    borderRadius: 2,
+    margin: "0 auto 14px"
+  };
+  const SL = {
+    fontSize: 10,
+    letterSpacing: 1.5,
+    color: "#4a5568",
+    marginBottom: 7
+  };
+  const CB = {
+    width: "100%",
+    padding: "10px",
+    borderRadius: 11,
+    background: "none",
+    color: "#4a5568",
+    fontSize: 12,
+    border: "none",
+    cursor: "pointer",
+    marginTop: 6
+  };
+  const chip = on => ({
+    flex: "0 0 auto",
+    padding: "4px 12px",
+    borderRadius: 20,
+    fontSize: 11,
+    fontWeight: 500,
+    background: on ? "rgba(201,168,76,.18)" : "rgba(255,255,255,.04)",
+    color: on ? "#c9a84c" : "#4a5568",
+    border: `1px solid ${on ? "rgba(201,168,76,.4)" : "rgba(255,255,255,.07)"}`,
+    cursor: "pointer"
+  });
+  const locChip = (l, on) => {
+    const lc = LOC_C[l] || {
+      c: "#c9a84c",
+      bg: "rgba(201,168,76,.18)"
+    };
+    return {
+      flex: "0 0 auto",
+      padding: "4px 12px",
+      borderRadius: 20,
+      fontSize: 11,
+      fontWeight: 500,
+      background: on ? lc.bg : "rgba(255,255,255,.04)",
+      color: on ? lc.c : "#4a5568",
+      border: `1px solid ${on ? lc.c + "50" : "rgba(255,255,255,.07)"}`,
+      cursor: "pointer"
+    };
+  };
+  if (loading) return /*#__PURE__*/React.createElement("div", {
+    style: {
+      height: "100vh",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      background: "#0b0f1a",
+      color: "#c9a84c",
+      fontFamily: "'Rajdhani',sans-serif",
+      letterSpacing: 3,
+      fontSize: 20,
+      fontWeight: 700,
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", null, "AVANTTO"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: "#4a5568",
+      letterSpacing: 2
+    }
+  }, "CARREGANDO..."));
+  if (fbErr) return /*#__PURE__*/React.createElement("div", {
+    style: {
+      height: "100vh",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      background: "#0b0f1a",
+      padding: 24,
+      textAlign: "center"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 32,
+      marginBottom: 12
+    }
+  }, "\u2699\uFE0F"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontFamily: "'Rajdhani',sans-serif",
+      fontSize: 18,
+      color: "#f87171",
+      marginBottom: 8
+    }
+  }, "Erro Firebase"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: "#374151",
+      fontFamily: "monospace",
+      background: "rgba(255,255,255,.04)",
+      padding: "10px 14px",
+      borderRadius: 8,
+      maxWidth: 340,
+      wordBreak: "break-all"
+    }
+  }, fbErr));
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "#0b0f1a",
+      minHeight: "100vh",
+      color: "#e2e8f0"
+    }
+  }, /*#__PURE__*/React.createElement("header", {
+    style: {
+      padding: "13px 16px",
+      borderBottom: "1px solid rgba(201,168,76,.18)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      background: "rgba(11,15,26,.92)",
+      position: "sticky",
+      top: 0,
+      zIndex: 50,
+      backdropFilter: "blur(10px)"
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontFamily: "'Rajdhani',sans-serif",
+      fontSize: 18,
+      fontWeight: 700,
+      color: "#c9a84c",
+      letterSpacing: 3
+    }
+  }, "AVANTTO"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 9,
+      color: "#4a5568",
+      letterSpacing: 2
+    }
+  }, "CONTROLE DE COMISSARIA")), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setUModal(true),
+    style: {
+      background: "rgba(201,168,76,.1)",
+      border: "1px solid rgba(201,168,76,.25)",
+      borderRadius: 20,
+      padding: "5px 12px",
+      color: "#c9a84c",
+      fontSize: 12,
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      gap: 5
+    }
+  }, /*#__PURE__*/React.createElement("span", null, "\u2708"), user || "Identificar-se")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 6,
+      padding: "10px 12px",
+      overflowX: "auto"
+    }
+  }, [[items.length, "Total", "#94a3b8"], [totOk, "Em estoque", "#4ade80"], [totLw, "Necessário", "#c084fc"], [totOut, "Esgotado", "#f87171"]].map(([v, l, c]) => /*#__PURE__*/React.createElement("div", {
+    key: l,
+    style: {
+      flex: "0 0 auto",
+      background: "rgba(255,255,255,.03)",
+      border: "1px solid rgba(255,255,255,.06)",
+      borderRadius: 10,
+      padding: "8px 14px",
+      textAlign: "center",
+      minWidth: 82
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 20,
+      fontWeight: 700,
+      fontFamily: "'Rajdhani',sans-serif",
+      color: c,
+      lineHeight: 1
+    }
+  }, v), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 9,
+      color: "#4a5568",
+      letterSpacing: .5,
+      marginTop: 2
+    }
+  }, l)))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      borderBottom: "1px solid rgba(255,255,255,.05)",
+      padding: "0 8px",
+      gap: 2,
+      background: "rgba(11,15,26,.6)",
+      overflowX: "auto"
+    }
+  }, [["items", "📦 Estoque"], ["history", "📋 Histórico"], ["alerts", `⚠️ Alertas${alerts.length ? " (" + alerts.length + ")" : ""}`], ["reports", "📤 Relatórios"], ["manage", "⚙️ Itens"]].map(([v, l]) => /*#__PURE__*/React.createElement("button", {
+    key: v,
+    onClick: () => setView(v),
+    style: {
+      flex: "0 0 auto",
+      padding: "10px 12px",
+      background: "none",
+      color: view === v ? "#c9a84c" : "#4a5568",
+      fontSize: 11,
+      fontWeight: 500,
+      cursor: "pointer",
+      border: "none",
+      borderBottom: view === v ? "2px solid #c9a84c" : "2px solid transparent",
+      whiteSpace: "nowrap"
+    }
+  }, l))), view === "items" && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "10px 12px 0"
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    placeholder: "Buscar produto ou marca...",
+    value: search,
+    onChange: e => setSearch(e.target.value),
+    style: {
+      width: "100%",
+      background: "rgba(255,255,255,.04)",
+      border: "1px solid rgba(255,255,255,.08)",
+      borderRadius: 8,
+      padding: "9px 12px",
+      color: "#e2e8f0",
+      fontSize: 13,
+      marginBottom: 8
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 5,
+      overflowX: "auto",
+      marginBottom: 6
+    }
+  }, CATS.map(c => /*#__PURE__*/React.createElement("button", {
+    key: c,
+    style: chip(cat === c),
+    onClick: () => setCat(c)
+  }, c))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 5,
+      overflowX: "auto",
+      marginBottom: 6
+    }
+  }, ["Todos", "Em estoque", "Necessário", "Esgotado", "A confirmar"].map(f => /*#__PURE__*/React.createElement("button", {
+    key: f,
+    style: chip(stF === f),
+    onClick: () => setStF(f)
+  }, f))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 5,
+      overflowX: "auto",
+      marginBottom: 8
+    }
+  }, ["Todos", ...LOCS].map(l => /*#__PURE__*/React.createElement("button", {
+    key: l,
+    style: locChip(l, locF === l),
+    onClick: () => setLocF(l)
+  }, l))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: "#4a5568",
+      marginBottom: 6
+    }
+  }, filtered.length, " produto", filtered.length !== 1 ? "s" : "")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "0 12px 90px",
+      display: "grid",
+      gap: 8
+    }
+  }, filtered.map(item => {
+    const st = getStatus(item),
+      tot = total(item);
+    return /*#__PURE__*/React.createElement("div", {
+      key: item.id,
+      style: {
+        background: "rgba(255,255,255,.025)",
+        border: "1px solid rgba(255,255,255,.065)",
+        borderLeft: `2px solid ${CAT_C[item.type] || "#94a3b8"}40`,
+        borderRadius: 12,
+        padding: "12px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 8
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 10
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 13,
+        fontWeight: 500,
+        color: "#e2e8f0",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+        marginBottom: 2
+      }
+    }, item.name), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 10,
+        color: "#4a5568"
+      }
+    }, [item.brand, item.size, item.unit].filter(Boolean).join(" · "))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        textAlign: "center",
+        flexShrink: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 24,
+        fontWeight: 700,
+        fontFamily: "'Rajdhani',sans-serif",
+        color: st.color,
+        lineHeight: 1
+      }
+    }, tot), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 8,
+        color: "#4a5568"
+      }
+    }, item.unit || "TOTAL")), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 5
+      }
+    }, LOCS.map(l => {
+      const qty = item.locations?.[l] || 0;
+      const lc = LOC_C[l];
+      return /*#__PURE__*/React.createElement("div", {
+        key: l,
+        style: {
+          fontSize: 10,
+          padding: "3px 9px",
+          borderRadius: 20,
+          background: qty > 0 ? lc.bg : "rgba(255,255,255,.03)",
+          color: qty > 0 ? lc.c : "#2d3748",
+          border: `1px solid ${qty > 0 ? lc.c + "50" : "rgba(255,255,255,.05)"}`,
+          fontWeight: qty > 0 ? 600 : 400
+        }
+      }, l, ": ", qty);
+    })), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        flexWrap: "wrap",
+        gap: 5
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        alignItems: "center",
+        gap: 5,
+        flexWrap: "wrap"
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 10,
+        padding: "2px 8px",
+        borderRadius: 20,
+        background: st.bg,
+        color: st.color,
+        fontWeight: 600
+      }
+    }, st.label), item.validade && (() => {
+      const vs = validadeStatus(item.validade);
+      if (!vs) return null;
+      return /*#__PURE__*/React.createElement("span", {
+        style: {
+          fontSize: 10,
+          padding: "2px 8px",
+          borderRadius: 20,
+          background: vs.bg,
+          color: vs.color,
+          fontWeight: 600,
+          display: "flex",
+          alignItems: "center",
+          gap: 3
+        }
+      }, vs.dias < 0 ? "⚠" : "📅", " ", vs.label, " (", fmtValidade(item.validade), ")");
+    })()), item.lastBy ? /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        alignItems: "center",
+        gap: 5,
+        background: "rgba(201,168,76,.08)",
+        border: "1px solid rgba(201,168,76,.2)",
+        borderRadius: 20,
+        padding: "3px 10px"
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 11,
+        color: "#c9a84c",
+        fontWeight: 700
+      }
+    }, "\u270E ", item.lastBy), item.lastAction && /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 9,
+        color: "#4a5568"
+      }
+    }, "\xB7 ", item.lastAction), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 9,
+        color: "#374151"
+      }
+    }, "\xB7 ", fmtTs(item.lastAt))) : /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 9,
+        color: "#2d3748"
+      }
+    }, "Sem edi\xE7\xF5es"))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        gap: 5,
+        flexWrap: "wrap"
+      }
+    }, /*#__PURE__*/React.createElement("button", {
+      style: {
+        flex: "1 1 45%",
+        background: "rgba(34,197,94,.12)",
+        border: "1px solid rgba(34,197,94,.25)",
+        borderRadius: 8,
+        padding: "8px 2px",
+        color: "#4ade80",
+        fontSize: 10,
+        fontWeight: 600,
+        cursor: "pointer"
+      },
+      onClick: () => {
+        setModal({
+          item,
+          type: "entrada"
+        });
+        setMLoc("");
+        setMQty(1);
+        setMNote("");
+      }
+    }, "+ Entrada"), /*#__PURE__*/React.createElement("button", {
+      style: {
+        flex: "1 1 45%",
+        background: "rgba(250,204,21,.1)",
+        border: "1px solid rgba(250,204,21,.25)",
+        borderRadius: 8,
+        padding: "8px 2px",
+        color: "#facc15",
+        fontSize: 10,
+        fontWeight: 600,
+        cursor: "pointer"
+      },
+      onClick: () => {
+        setModal({
+          item,
+          type: "transferir"
+        });
+        setMLoc("");
+        setMQty(1);
+        setMNote("");
+      }
+    }, "\u21C4 Transferir"), /*#__PURE__*/React.createElement("button", {
+      style: {
+        flex: "1 1 45%",
+        background: "rgba(248,113,113,.1)",
+        border: "1px solid rgba(248,113,113,.22)",
+        borderRadius: 8,
+        padding: "8px 2px",
+        color: "#f87171",
+        fontSize: 10,
+        fontWeight: 600,
+        cursor: "pointer"
+      },
+      onClick: () => {
+        setModal({
+          item,
+          type: "saida"
+        });
+        setMLoc("");
+        setMQty(1);
+        setMNote("");
+      }
+    }, "\u2212 Consumo"), /*#__PURE__*/React.createElement("button", {
+      style: {
+        flex: "1 1 45%",
+        background: "rgba(148,163,184,.08)",
+        border: "1px solid rgba(148,163,184,.18)",
+        borderRadius: 8,
+        padding: "8px 2px",
+        color: "#94a3b8",
+        fontSize: 10,
+        fontWeight: 600,
+        cursor: "pointer"
+      },
+      onClick: () => {
+        setAdjM(item);
+        setAdjLoc("Armário");
+        setAdjQ(item.locations?.["Armário"] || 0);
+      }
+    }, "\u270F Ajustar")));
+  }))), view === "history" && /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "12px 12px 90px"
+    }
+  }, movs.length === 0 ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: "center",
+      color: "#4a5568",
+      padding: 40
+    }
+  }, "Nenhuma movimenta\xE7\xE3o ainda.") : [...movs].reverse().map(m => {
+    const isAdj = m.type === "ajuste",
+      tc = isAdj ? "#94a3b8" : m.type === "entrada" ? "#4ade80" : "#f87171";
+    const lc = LOC_C[m.loc] || {
+      c: "#94a3b8",
+      bg: "rgba(148,163,184,.15)"
+    };
+    return /*#__PURE__*/React.createElement("div", {
+      key: m.id,
+      style: {
+        background: "rgba(255,255,255,.025)",
+        border: "1px solid rgba(255,255,255,.055)",
+        borderRadius: 10,
+        padding: "11px",
+        marginBottom: 7
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "flex-start",
+        marginBottom: 5
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12,
+        fontWeight: 500,
+        color: "#e2e8f0",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap"
+      }
+    }, m.itemName), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 10,
+        color: "#4a5568"
+      }
+    }, m.brand)), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 13,
+        fontWeight: 700,
+        fontFamily: "'Rajdhani',sans-serif",
+        color: tc,
+        marginLeft: 8,
+        flexShrink: 0
+      }
+    }, isAdj ? `→ ${m.after}` : m.type === "entrada" ? `+${m.qty}` : `-${m.qty}`)), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        alignItems: "center",
+        gap: 6,
+        flexWrap: "wrap"
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 10,
+        padding: "2px 8px",
+        borderRadius: 20,
+        background: lc.bg,
+        color: lc.c,
+        fontWeight: 500
+      }
+    }, "\uD83D\uDCCD ", m.loc), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 10,
+        padding: "2px 8px",
+        borderRadius: 20,
+        background: "rgba(201,168,76,.12)",
+        color: "#c9a84c",
+        fontWeight: 600
+      }
+    }, "\u270E ", m.user), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 10,
+        color: "#374151"
+      }
+    }, fmtTs(m.ts))), !isAdj && /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 9,
+        color: "#374151",
+        marginTop: 4
+      }
+    }, m.before, " \u2192 ", m.after, " total"), m.note && !m.note.startsWith("Ajuste") && /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 10,
+        color: "#6b7280",
+        marginTop: 3,
+        fontStyle: "italic"
+      }
+    }, "\"", m.note, "\""));
+  })), view === "alerts" && /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "12px 12px 90px"
+    }
+  }, alerts.length === 0 ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: "center",
+      color: "#4ade80",
+      padding: 40
+    }
+  }, "\u2705 Tudo em estoque!") : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: "#4a5568",
+      marginBottom: 10
+    }
+  }, alerts.filter(i => getStatus(i).label === "Esgotado").length, " esgotados \xB7 ", alerts.filter(i => ["Crítico", "Necessário"].includes(getStatus(i).label)).length, " com estoque baixo"), alerts.map(item => {
+    const st = getStatus(item);
+    return /*#__PURE__*/React.createElement("div", {
+      key: item.id,
+      style: {
+        background: "rgba(255,255,255,.025)",
+        borderLeft: `3px solid ${st.dot}`,
+        borderRadius: 10,
+        padding: "12px",
+        marginBottom: 7
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "flex-start",
+        marginBottom: 6
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 13,
+        fontWeight: 500,
+        color: "#e2e8f0",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap"
+      }
+    }, item.name), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 10,
+        color: "#4a5568"
+      }
+    }, item.brand, " \xB7 ", item.type)), /*#__PURE__*/React.createElement("div", {
+      style: {
+        textAlign: "right",
+        marginLeft: 10,
+        flexShrink: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 22,
+        fontWeight: 700,
+        fontFamily: "'Rajdhani',sans-serif",
+        color: st.color,
+        lineHeight: 1
+      }
+    }, total(item)), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 10,
+        padding: "1px 6px",
+        borderRadius: 20,
+        background: st.bg,
+        color: st.color
+      }
+    }, st.label))), item.lastBy && /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        alignItems: "center",
+        gap: 5,
+        background: "rgba(201,168,76,.08)",
+        border: "1px solid rgba(201,168,76,.2)",
+        borderRadius: 20,
+        padding: "3px 10px",
+        width: "fit-content"
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 10,
+        color: "#c9a84c",
+        fontWeight: 700
+      }
+    }, "\u270E ", item.lastBy), item.lastAction && /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 9,
+        color: "#4a5568"
+      }
+    }, "\xB7 ", item.lastAction), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 9,
+        color: "#374151"
+      }
+    }, "\xB7 ", fmtTs(item.lastAt))));
+  })), (() => {
+    const vencidos = items.filter(i => i.validade && validadeStatus(i.validade) && validadeStatus(i.validade).dias < 0);
+    const vencendo = items.filter(i => i.validade && validadeStatus(i.validade) && validadeStatus(i.validade).dias >= 0 && validadeStatus(i.validade).dias <= 30);
+    if (!vencidos.length && !vencendo.length) return null;
+    return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 10,
+        fontWeight: 600,
+        letterSpacing: 1.5,
+        color: "#f87171",
+        marginTop: 16,
+        marginBottom: 8
+      }
+    }, "\uD83D\uDCC5 VALIDADE"), vencidos.map(item => /*#__PURE__*/React.createElement("div", {
+      key: "v" + item.id,
+      style: {
+        background: "rgba(248,113,113,.08)",
+        borderLeft: "3px solid #ef4444",
+        borderRadius: 10,
+        padding: "10px 12px",
+        marginBottom: 6,
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center"
+      }
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12,
+        fontWeight: 500,
+        color: "#e2e8f0"
+      }
+    }, item.name), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 10,
+        color: "#4a5568"
+      }
+    }, item.brand)), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 11,
+        padding: "2px 8px",
+        borderRadius: 20,
+        background: "rgba(248,113,113,.2)",
+        color: "#f87171",
+        fontWeight: 700,
+        flexShrink: 0
+      }
+    }, "\u26A0 VENCIDO ", fmtValidade(item.validade)))), vencendo.map(item => {
+      const vs = validadeStatus(item.validade);
+      return /*#__PURE__*/React.createElement("div", {
+        key: "ve" + item.id,
+        style: {
+          background: vs.bg,
+          borderLeft: `3px solid ${vs.dot}`,
+          borderRadius: 10,
+          padding: "10px 12px",
+          marginBottom: 6,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center"
+        }
+      }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+        style: {
+          fontSize: 12,
+          fontWeight: 500,
+          color: "#e2e8f0"
+        }
+      }, item.name), /*#__PURE__*/React.createElement("div", {
+        style: {
+          fontSize: 10,
+          color: "#4a5568"
+        }
+      }, item.brand)), /*#__PURE__*/React.createElement("span", {
+        style: {
+          fontSize: 11,
+          padding: "2px 8px",
+          borderRadius: 20,
+          background: vs.bg,
+          color: vs.color,
+          fontWeight: 700,
+          flexShrink: 0
+        }
+      }, "\uD83D\uDCC5 ", fmtValidade(item.validade)));
+    }));
+  })()), view === "reports" && /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "16px 12px 90px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: "#4a5568",
+      marginBottom: 16
+    }
+  }, "Copie e cole direto no WhatsApp ou onde preferir."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "rgba(255,255,255,.025)",
+      border: "1px solid rgba(37,211,102,.25)",
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 8,
+      marginBottom: 6
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 18
+    }
+  }, "\uD83D\uDCAC"), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      fontWeight: 500,
+      color: "#e2e8f0"
+    }
+  }, "Checklist WhatsApp"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: "#4a5568"
+    }
+  }, "Itens esgotados e com estoque baixo"))), /*#__PURE__*/React.createElement("pre", {
+    style: {
+      background: "rgba(255,255,255,.03)",
+      border: "1px solid rgba(255,255,255,.06)",
+      borderRadius: 8,
+      padding: "10px 12px",
+      fontSize: 11,
+      color: "#94a3b8",
+      whiteSpace: "pre-wrap",
+      wordBreak: "break-word",
+      marginBottom: 12,
+      maxHeight: 200,
+      overflowY: "auto",
+      fontFamily: "monospace"
+    }
+  }, rptWhats()), /*#__PURE__*/React.createElement("button", {
+    onClick: () => copiar(rptWhats(), "✅ Copiado! Cole no WhatsApp"),
+    style: {
+      width: "100%",
+      padding: "11px",
+      borderRadius: 9,
+      background: "rgba(37,211,102,.18)",
+      border: "1px solid rgba(37,211,102,.35)",
+      color: "#25d366",
+      fontSize: 13,
+      fontWeight: 600,
+      cursor: "pointer"
+    }
+  }, "Copiar para WhatsApp")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "rgba(255,255,255,.025)",
+      border: "1px solid rgba(201,168,76,.2)",
+      borderRadius: 12,
+      padding: 16
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 8,
+      marginBottom: 6
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 18
+    }
+  }, "\uD83D\uDCCB"), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      fontWeight: 500,
+      color: "#e2e8f0"
+    }
+  }, "Relat\xF3rio Completo"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: "#4a5568"
+    }
+  }, "Com distribui\xE7\xE3o por local"))), /*#__PURE__*/React.createElement("pre", {
+    style: {
+      background: "rgba(255,255,255,.03)",
+      border: "1px solid rgba(255,255,255,.06)",
+      borderRadius: 8,
+      padding: "10px 12px",
+      fontSize: 10,
+      color: "#94a3b8",
+      whiteSpace: "pre-wrap",
+      wordBreak: "break-word",
+      marginBottom: 12,
+      maxHeight: 260,
+      overflowY: "auto",
+      fontFamily: "monospace"
+    }
+  }, rptCompleto()), /*#__PURE__*/React.createElement("button", {
+    onClick: () => copiar(rptCompleto(), "✅ Relatório copiado!"),
+    style: {
+      width: "100%",
+      padding: "11px",
+      borderRadius: 9,
+      background: "rgba(201,168,76,.15)",
+      border: "1px solid rgba(201,168,76,.3)",
+      color: "#c9a84c",
+      fontSize: 13,
+      fontWeight: 600,
+      cursor: "pointer"
+    }
+  }, "Copiar relat\xF3rio completo"))), view === "manage" && /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "12px 12px 90px"
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => openItm("new"),
+    style: {
+      width: "100%",
+      padding: "13px",
+      borderRadius: 11,
+      background: "rgba(99,102,241,.15)",
+      border: "1px dashed rgba(99,102,241,.4)",
+      color: "#818cf8",
+      fontSize: 13,
+      fontWeight: 600,
+      cursor: "pointer",
+      marginBottom: 16
+    }
+  }, "+ Adicionar novo produto"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: "#4a5568",
+      marginBottom: 10
+    }
+  }, items.length, " produtos cadastrados"), ["BEBIDAS", "ALIMENTOS", "MATERIAL"].map(tp => /*#__PURE__*/React.createElement("div", {
+    key: tp,
+    style: {
+      marginBottom: 20
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      fontWeight: 600,
+      letterSpacing: 2,
+      color: CAT_C[tp],
+      marginBottom: 8,
+      paddingLeft: 4
+    }
+  }, tp), items.filter(i => i.type === tp).map(item => /*#__PURE__*/React.createElement("div", {
+    key: item.id,
+    onClick: () => openItm(item),
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      padding: "10px 12px",
+      background: "rgba(255,255,255,.025)",
+      border: "1px solid rgba(255,255,255,.06)",
+      borderRadius: 9,
+      marginBottom: 5,
+      cursor: "pointer"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      fontWeight: 500,
+      color: "#e2e8f0",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap"
+    }
+  }, item.name), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: "#4a5568"
+    }
+  }, [item.brand, item.size, item.unit].filter(Boolean).join(" · ") || "—")), item.lastBy && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 9,
+      color: "#c9a84c",
+      marginRight: 6,
+      flexShrink: 0
+    }
+  }, "\u270E ", item.lastBy), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: "#6366f1",
+      flexShrink: 0
+    }
+  }, "Editar \u203A")))))), modal && /*#__PURE__*/React.createElement("div", {
+    style: OV,
+    onClick: e => e.target === e.currentTarget && setModal(null)
+  }, /*#__PURE__*/React.createElement("div", {
+    style: SH
+  }, /*#__PURE__*/React.createElement("div", {
+    style: HDL
+  }), modal.type === "entrada" && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      letterSpacing: 2,
+      color: "#4ade80",
+      textAlign: "center",
+      marginBottom: 4
+    }
+  }, "\u25B2 NOVA ENTRADA"), modal.type === "transferir" && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      letterSpacing: 2,
+      color: "#facc15",
+      textAlign: "center",
+      marginBottom: 4
+    }
+  }, "\u21C4 TRANSFER\xCANCIA"), modal.type === "saida" && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      letterSpacing: 2,
+      color: "#f87171",
+      textAlign: "center",
+      marginBottom: 4
+    }
+  }, "\u25BC SA\xCDDA / CONSUMO"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontFamily: "'Rajdhani',sans-serif",
+      fontSize: 17,
+      fontWeight: 600,
+      color: "#e2e8f0",
+      textAlign: "center",
+      marginBottom: 2
+    }
+  }, modal.item.name), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      flexWrap: "wrap",
+      gap: 4,
+      justifyContent: "center",
+      marginBottom: 14
+    }
+  }, LOCS.map(l => {
+    const qty = modal.item.locations?.[l] || 0,
+      lc = LOC_C[l];
+    return /*#__PURE__*/React.createElement("span", {
+      key: l,
+      style: {
+        fontSize: 10,
+        padding: "2px 8px",
+        borderRadius: 20,
+        background: qty > 0 ? lc.bg : "rgba(255,255,255,.03)",
+        color: qty > 0 ? lc.c : "#2d3748",
+        border: `1px solid ${qty > 0 ? lc.c + "40" : "rgba(255,255,255,.05)"}`
+      }
+    }, l, ": ", qty);
+  })), modal.type === "entrada" && /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "rgba(34,197,94,.08)",
+      border: "1px solid rgba(34,197,94,.2)",
+      borderRadius: 10,
+      padding: "12px",
+      marginBottom: 16,
+      textAlign: "center"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      color: "#4ade80",
+      fontWeight: 600,
+      marginBottom: 4
+    }
+  }, "Produto entrar\xE1 no Arm\xE1rio"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: "#4a5568"
+    }
+  }, "O Arm\xE1rio \xE9 o estoque principal. Use Transferir para distribuir aos locais.")), modal.type === "transferir" && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: SL
+  }, "DESTINO (sai do Arm\xE1rio \u2192 vai para:)"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "rgba(250,204,21,.06)",
+      border: "1px solid rgba(250,204,21,.18)",
+      borderRadius: 8,
+      padding: "8px 10px",
+      marginBottom: 10,
+      fontSize: 10,
+      color: "#a16207"
+    }
+  }, "Arm\xE1rio dispon\xEDvel: ", /*#__PURE__*/React.createElement("strong", {
+    style: {
+      color: "#facc15"
+    }
+  }, modal.item.locations?.["Armário"] || 0), " unid."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: 7,
+      marginBottom: 16
+    }
+  }, LOCS.filter(l => l !== "Armário").map(loc => {
+    const lc = LOC_C[loc],
+      on = mLoc === loc,
+      qty = modal.item.locations?.[loc] || 0;
+    return /*#__PURE__*/React.createElement("button", {
+      key: loc,
+      onClick: () => setMLoc(loc),
+      style: {
+        padding: "10px 8px",
+        borderRadius: 9,
+        background: on ? lc.bg : "rgba(255,255,255,.04)",
+        border: `1px solid ${on ? lc.c + "60" : "rgba(255,255,255,.07)"}`,
+        color: on ? lc.c : "#94a3b8",
+        fontSize: 11,
+        fontWeight: 500,
+        cursor: "pointer",
+        textAlign: "left"
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontWeight: 600
+      }
+    }, loc), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 9,
+        opacity: .7,
+        marginTop: 1
+      }
+    }, "tem: ", qty));
+  }))), modal.type === "saida" && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: SL
+  }, "LOCAL DE ONDE SAIU (consumido)"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: 7,
+      marginBottom: 16
+    }
+  }, LOCS.map(loc => {
+    const lc = LOC_C[loc],
+      on = mLoc === loc,
+      qty = modal.item.locations?.[loc] || 0;
+    return /*#__PURE__*/React.createElement("button", {
+      key: loc,
+      onClick: () => setMLoc(loc),
+      disabled: qty === 0,
+      style: {
+        padding: "10px 8px",
+        borderRadius: 9,
+        background: on ? lc.bg : qty === 0 ? "rgba(255,255,255,.02)" : "rgba(255,255,255,.04)",
+        border: `1px solid ${on ? lc.c + "60" : qty === 0 ? "rgba(255,255,255,.03)" : "rgba(255,255,255,.07)"}`,
+        color: on ? lc.c : qty === 0 ? "#1f2937" : "#94a3b8",
+        fontSize: 11,
+        fontWeight: 500,
+        cursor: qty === 0 ? "default" : "pointer",
+        textAlign: "left",
+        opacity: qty === 0 ? .4 : 1
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontWeight: 600
+      }
+    }, loc), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 9,
+        opacity: .7,
+        marginTop: 1
+      }
+    }, "dispon\xEDvel: ", qty));
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: SL
+  }, "QUANTIDADE"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 10,
+      background: "rgba(255,255,255,.03)",
+      border: "1px solid rgba(255,255,255,.07)",
+      borderRadius: 9,
+      padding: "7px 10px",
+      marginBottom: 12
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => setMQty(Math.max(1, mQty - 1)),
+    style: {
+      width: 30,
+      height: 30,
+      borderRadius: 7,
+      background: "rgba(255,255,255,.07)",
+      color: "#e2e8f0",
+      fontSize: 16,
+      border: "none",
+      cursor: "pointer"
+    }
+  }, "\u2212"), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    value: mQty,
+    onChange: e => setMQty(Math.max(1, parseInt(e.target.value) || 1)),
+    style: {
+      flex: 1,
+      background: "none",
+      border: "none",
+      color: "#e2e8f0",
+      fontSize: 22,
+      fontWeight: 700,
+      fontFamily: "'Rajdhani',sans-serif",
+      textAlign: "center"
+    }
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setMQty(mQty + 1),
+    style: {
+      width: 30,
+      height: 30,
+      borderRadius: 7,
+      background: "rgba(255,255,255,.07)",
+      color: "#e2e8f0",
+      fontSize: 16,
+      border: "none",
+      cursor: "pointer"
+    }
+  }, "+")), /*#__PURE__*/React.createElement("div", {
+    style: SL
+  }, "OBSERVA\xC7\xC3O (opcional)"), /*#__PURE__*/React.createElement("textarea", {
+    placeholder: "Ex: Reposi\xE7\xE3o voo SP-001...",
+    value: mNote,
+    onChange: e => setMNote(e.target.value),
+    style: {
+      width: "100%",
+      background: "rgba(255,255,255,.03)",
+      border: "1px solid rgba(255,255,255,.07)",
+      borderRadius: 8,
+      padding: "8px 10px",
+      color: "#e2e8f0",
+      fontSize: 12,
+      marginBottom: 14,
+      resize: "none",
+      height: 46
+    }
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: handleMove,
+    disabled: modal.type !== "entrada" && !mLoc,
+    style: {
+      width: "100%",
+      padding: "13px",
+      borderRadius: 11,
+      background: modal.type === "entrada" || modal.type !== "entrada" && mLoc ? modal.type === "entrada" ? "#22c55e" : modal.type === "transferir" ? "#ca8a04" : "#ef4444" : "rgba(255,255,255,.04)",
+      color: modal.type === "entrada" || modal.type !== "entrada" && mLoc ? "#fff" : "#4a5568",
+      fontWeight: 700,
+      fontSize: 14,
+      fontFamily: "'Rajdhani',sans-serif",
+      letterSpacing: 1,
+      border: "none",
+      cursor: modal.type === "entrada" || modal.type !== "entrada" && mLoc ? "pointer" : "default"
+    }
+  }, modal.type === "entrada" ? "CONFIRMAR ENTRADA" : modal.type === "transferir" ? !mLoc ? "ESCOLHA O DESTINO" : "CONFIRMAR TRANSFERÊNCIA" : !mLoc ? "ESCOLHA O LOCAL" : "CONFIRMAR SAÍDA"), /*#__PURE__*/React.createElement("button", {
+    style: CB,
+    onClick: () => setModal(null)
+  }, "Cancelar"))), adjM && /*#__PURE__*/React.createElement("div", {
+    style: OV,
+    onClick: e => e.target === e.currentTarget && setAdjM(null)
+  }, /*#__PURE__*/React.createElement("div", {
+    style: SH
+  }, /*#__PURE__*/React.createElement("div", {
+    style: HDL
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      letterSpacing: 2,
+      color: "#94a3b8",
+      textAlign: "center",
+      marginBottom: 4
+    }
+  }, "\u270F AJUSTAR ESTOQUE"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontFamily: "'Rajdhani',sans-serif",
+      fontSize: 17,
+      fontWeight: 600,
+      color: "#e2e8f0",
+      textAlign: "center",
+      marginBottom: 16
+    }
+  }, adjM.name), /*#__PURE__*/React.createElement("div", {
+    style: SL
+  }, "SELECIONE O LOCAL"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: 7,
+      marginBottom: 14
+    }
+  }, LOCS.map(l => {
+    const lc = LOC_C[l],
+      on = adjLoc === l;
+    return /*#__PURE__*/React.createElement("button", {
+      key: l,
+      onClick: () => {
+        setAdjLoc(l);
+        setAdjQ(adjM.locations?.[l] || 0);
+      },
+      style: {
+        padding: "10px 8px",
+        borderRadius: 9,
+        background: on ? lc.bg : "rgba(255,255,255,.04)",
+        border: `1px solid ${on ? lc.c + "60" : "rgba(255,255,255,.07)"}`,
+        color: on ? lc.c : "#94a3b8",
+        fontSize: 11,
+        fontWeight: 500,
+        cursor: "pointer",
+        textAlign: "left"
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontWeight: 600
+      }
+    }, l), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 9,
+        opacity: .7,
+        marginTop: 1
+      }
+    }, "atual: ", adjM.locations?.[l] || 0));
+  })), /*#__PURE__*/React.createElement("div", {
+    style: SL
+  }, "NOVO TOTAL EM ", adjLoc.toUpperCase()), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 10,
+      background: "rgba(255,255,255,.03)",
+      border: "1px solid rgba(255,255,255,.07)",
+      borderRadius: 9,
+      padding: "7px 10px",
+      marginBottom: 18
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => setAdjQ(Math.max(0, adjQ - 1)),
+    style: {
+      width: 30,
+      height: 30,
+      borderRadius: 7,
+      background: "rgba(255,255,255,.07)",
+      color: "#e2e8f0",
+      fontSize: 16,
+      border: "none",
+      cursor: "pointer"
+    }
+  }, "\u2212"), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    value: adjQ,
+    onChange: e => setAdjQ(Math.max(0, parseInt(e.target.value) || 0)),
+    style: {
+      flex: 1,
+      background: "none",
+      border: "none",
+      color: "#e2e8f0",
+      fontSize: 22,
+      fontWeight: 700,
+      fontFamily: "'Rajdhani',sans-serif",
+      textAlign: "center"
+    }
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setAdjQ(adjQ + 1),
+    style: {
+      width: 30,
+      height: 30,
+      borderRadius: 7,
+      background: "rgba(255,255,255,.07)",
+      color: "#e2e8f0",
+      fontSize: 16,
+      border: "none",
+      cursor: "pointer"
+    }
+  }, "+")), /*#__PURE__*/React.createElement("button", {
+    onClick: handleAdj,
+    style: {
+      width: "100%",
+      padding: "13px",
+      borderRadius: 11,
+      background: "#c9a84c",
+      color: "#0b0f1a",
+      fontWeight: 700,
+      fontSize: 14,
+      fontFamily: "'Rajdhani',sans-serif",
+      letterSpacing: 1,
+      border: "none",
+      cursor: "pointer"
+    }
+  }, "SALVAR CONTAGEM"), /*#__PURE__*/React.createElement("button", {
+    style: CB,
+    onClick: () => setAdjM(null)
+  }, "Cancelar"))), itmM && /*#__PURE__*/React.createElement("div", {
+    style: OV,
+    onClick: e => e.target === e.currentTarget && setItmM(null)
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...SH,
+      paddingBottom: 40
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: HDL
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      letterSpacing: 2,
+      color: "#818cf8",
+      textAlign: "center",
+      marginBottom: 4
+    }
+  }, itmM === "new" ? "➕ NOVO PRODUTO" : "⚙ EDITAR PRODUTO"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontFamily: "'Rajdhani',sans-serif",
+      fontSize: 17,
+      fontWeight: 600,
+      color: "#e2e8f0",
+      textAlign: "center",
+      marginBottom: 16
+    }
+  }, itmM === "new" ? "Adicionar item" : itmF.name), [["Nome *", "name", "Ex: Refrigerante Limão"], ["Marca", "brand", "Ex: Coca-Cola"], ["Peso / Tamanho", "size", "Ex: 350ml"], ["Unidade", "unit", "Ex: PCT, CX"]].map(([lbl, fld, ph]) => /*#__PURE__*/React.createElement("div", {
+    key: fld,
+    style: {
+      marginBottom: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: SL
+  }, lbl), /*#__PURE__*/React.createElement("input", {
+    placeholder: ph,
+    value: itmF[fld],
+    onChange: e => setItmF(f => ({
+      ...f,
+      [fld]: e.target.value
+    })),
+    style: {
+      width: "100%",
+      background: "rgba(255,255,255,.04)",
+      border: "1px solid rgba(255,255,255,.1)",
+      borderRadius: 8,
+      padding: "10px 12px",
+      color: "#e2e8f0",
+      fontSize: 13
+    }
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: 18
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: SL
+  }, "VALIDADE (opcional)"), itmF.validade && validadeStatus(itmF.validade) && (() => {
+    const vs = validadeStatus(itmF.validade);
+    return /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11,
+        padding: "3px 10px",
+        borderRadius: 20,
+        background: vs.bg,
+        color: vs.color,
+        fontWeight: 600,
+        marginBottom: 8,
+        display: "inline-block"
+      }
+    }, vs.label);
+  })(), /*#__PURE__*/React.createElement("input", {
+    type: "date",
+    value: itmF.validade || "",
+    onChange: e => setItmF(f => ({
+      ...f,
+      validade: e.target.value
+    })),
+    style: {
+      width: "100%",
+      background: "rgba(255,255,255,.04)",
+      border: "1px solid rgba(255,255,255,.1)",
+      borderRadius: 8,
+      padding: "10px 12px",
+      color: itmF.validade ? "#e2e8f0" : "#4a5568",
+      fontSize: 13,
+      colorScheme: "dark"
+    }
+  }), itmF.validade && /*#__PURE__*/React.createElement("button", {
+    onClick: () => setItmF(f => ({
+      ...f,
+      validade: ""
+    })),
+    style: {
+      background: "none",
+      border: "none",
+      color: "#4a5568",
+      fontSize: 10,
+      cursor: "pointer",
+      marginTop: 4
+    }
+  }, "\u2715 Remover validade")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: 18
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: SL
+  }, "CATEGORIA"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 7
+    }
+  }, ["BEBIDAS", "ALIMENTOS", "MATERIAL"].map(t => /*#__PURE__*/React.createElement("button", {
+    key: t,
+    onClick: () => setItmF(f => ({
+      ...f,
+      type: t
+    })),
+    style: {
+      flex: 1,
+      padding: "9px 6px",
+      borderRadius: 8,
+      background: itmF.type === t ? CAT_BG[t] : "rgba(255,255,255,.03)",
+      border: `1px solid ${itmF.type === t ? CAT_C[t] + "60" : "rgba(255,255,255,.07)"}`,
+      color: itmF.type === t ? CAT_C[t] : "#4a5568",
+      fontSize: 10,
+      fontWeight: 600,
+      cursor: "pointer"
+    }
+  }, t)))), /*#__PURE__*/React.createElement("button", {
+    onClick: handleSaveItm,
+    disabled: !itmF.name.trim(),
+    style: {
+      width: "100%",
+      padding: "13px",
+      borderRadius: 11,
+      background: itmF.name.trim() ? "#6366f1" : "rgba(255,255,255,.04)",
+      color: itmF.name.trim() ? "#fff" : "#4a5568",
+      fontWeight: 700,
+      fontSize: 14,
+      fontFamily: "'Rajdhani',sans-serif",
+      letterSpacing: 1,
+      border: "none",
+      cursor: itmF.name.trim() ? "pointer" : "default",
+      marginBottom: 8
+    }
+  }, itmM === "new" ? "ADICIONAR PRODUTO" : "SALVAR ALTERAÇÕES"), itmM !== "new" && /*#__PURE__*/React.createElement("button", {
+    onClick: () => setDelC(itmM),
+    style: {
+      width: "100%",
+      padding: "10px",
+      borderRadius: 11,
+      background: "rgba(248,113,113,.08)",
+      border: "1px solid rgba(248,113,113,.2)",
+      color: "#f87171",
+      fontSize: 12,
+      cursor: "pointer",
+      marginBottom: 4
+    }
+  }, "Excluir este produto"), /*#__PURE__*/React.createElement("button", {
+    style: CB,
+    onClick: () => setItmM(null)
+  }, "Cancelar"))), delC && /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "fixed",
+      inset: 0,
+      background: "rgba(0,0,0,.8)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 400,
+      padding: 20
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "#111827",
+      borderRadius: 14,
+      padding: 22,
+      width: "100%",
+      maxWidth: 320,
+      border: "1px solid rgba(248,113,113,.3)",
+      textAlign: "center"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 28,
+      marginBottom: 10
+    }
+  }, "\uD83D\uDDD1\uFE0F"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 14,
+      fontWeight: 500,
+      color: "#e2e8f0",
+      marginBottom: 6
+    }
+  }, "Excluir produto?"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      color: "#4a5568",
+      marginBottom: 20
+    }
+  }, "\"", delC.name, "\" ser\xE1 removido permanentemente."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => setDelC(null),
+    style: {
+      flex: 1,
+      padding: "11px",
+      borderRadius: 9,
+      background: "rgba(255,255,255,.05)",
+      border: "1px solid rgba(255,255,255,.08)",
+      color: "#94a3b8",
+      fontSize: 13,
+      cursor: "pointer"
+    }
+  }, "Cancelar"), /*#__PURE__*/React.createElement("button", {
+    onClick: handleDelItm,
+    style: {
+      flex: 1,
+      padding: "11px",
+      borderRadius: 9,
+      background: "#ef4444",
+      border: "none",
+      color: "#fff",
+      fontSize: 13,
+      fontWeight: 700,
+      cursor: "pointer"
+    }
+  }, "Excluir")))), uModal && /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "fixed",
+      inset: 0,
+      background: "rgba(0,0,0,.85)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 300,
+      padding: 20
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "#111827",
+      borderRadius: 16,
+      padding: 24,
+      width: "100%",
+      maxWidth: 340,
+      border: "1px solid rgba(201,168,76,.28)"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontFamily: "'Rajdhani',sans-serif",
+      fontSize: 22,
+      fontWeight: 700,
+      color: "#c9a84c",
+      textAlign: "center",
+      marginBottom: 4
+    }
+  }, "\u2708 AVANTTO"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      color: "#4a5568",
+      textAlign: "center",
+      marginBottom: 16
+    }
+  }, "Quem \xE9 voc\xEA?"), savedNames.length > 0 && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: "#4a5568",
+      letterSpacing: 1,
+      marginBottom: 8
+    }
+  }, "TOQUE NO SEU NOME"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      flexWrap: "wrap",
+      gap: 8,
+      marginBottom: 16
+    }
+  }, savedNames.map(n => /*#__PURE__*/React.createElement("button", {
+    key: n,
+    onClick: () => {
+      localStorage.setItem("avantto-user", n);
+      setUser(n);
+      setUModal(false);
+      setUName("");
+    },
+    style: {
+      padding: "10px 16px",
+      borderRadius: 10,
+      background: "rgba(201,168,76,.12)",
+      border: "1px solid rgba(201,168,76,.3)",
+      color: "#c9a84c",
+      fontSize: 13,
+      fontWeight: 500,
+      cursor: "pointer"
+    }
+  }, n))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: "#4a5568",
+      letterSpacing: 1,
+      marginBottom: 8
+    }
+  }, "OU DIGITE UM NOME NOVO")), /*#__PURE__*/React.createElement("input", {
+    autoFocus: true,
+    placeholder: "Digite seu nome...",
+    value: uName,
+    onChange: e => setUName(e.target.value),
+    onKeyDown: e => e.key === "Enter" && uName.trim() && saveUser(),
+    style: {
+      width: "100%",
+      background: "rgba(255,255,255,.04)",
+      border: "1px solid rgba(255,255,255,.1)",
+      borderRadius: 8,
+      padding: "11px 13px",
+      color: "#e2e8f0",
+      fontSize: 14,
+      marginBottom: 12
+    }
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: saveUser,
+    disabled: !uName.trim(),
+    style: {
+      width: "100%",
+      padding: "12px",
+      borderRadius: 10,
+      background: uName.trim() ? "#c9a84c" : "rgba(255,255,255,.04)",
+      color: uName.trim() ? "#0b0f1a" : "#4a5568",
+      fontWeight: 700,
+      fontSize: 14,
+      border: "none",
+      cursor: uName.trim() ? "pointer" : "default",
+      fontFamily: "'Rajdhani',sans-serif",
+      letterSpacing: 1
+    }
+  }, "ENTRAR"), user && /*#__PURE__*/React.createElement("button", {
+    style: CB,
+    onClick: () => setUModal(false)
+  }, "Cancelar"))), toast && /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "fixed",
+      bottom: 24,
+      left: "50%",
+      transform: "translateX(-50%)",
+      background: toast.ok ? "rgba(34,197,94,.95)" : "rgba(239,68,68,.95)",
+      color: "#fff",
+      padding: "10px 18px",
+      borderRadius: 20,
+      fontSize: 12,
+      fontWeight: 500,
+      zIndex: 999,
+      whiteSpace: "nowrap",
+      boxShadow: "0 4px 20px rgba(0,0,0,.4)"
+    }
+  }, toast.msg));
+}
+ReactDOM.createRoot(document.getElementById('root')).render(/*#__PURE__*/React.createElement(App, null));
+
+  </script>
+
 </body>
 </html>
