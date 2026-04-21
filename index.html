@@ -45,7 +45,10 @@
       const app=initializeApp(firebaseConfig), db=getFirestore(app);
       window._db=db; window._doc=doc; window._setDoc=setDoc; window._onSnapshot=onSnapshot; window._getDoc=getDoc;
     } catch(e){ window._fbError=e.message; }
-    window._fbReady=true; window.dispatchEvent(new Event('fbReady'));
+    // Store as promise so React can always await it regardless of timing
+    window._fbReady=true;
+    if(window._fbReadyResolve) window._fbReadyResolve();
+    window.dispatchEvent(new Event('fbReady'));
   </script>
 
   <script type="text/babel">
@@ -204,8 +207,10 @@
       useEffect(()=>{
         const saved=localStorage.getItem("avantto-user");
         if(saved)setUser(saved); else setUModal(true);
+
         const setup=()=>{
           if(window._fbError){setFbErr(window._fbError);setLoading(false);return()=>{};}
+          if(!window._db){setFbErr("Firebase não inicializou. Verifique as credenciais.");setLoading(false);return()=>{};}
           window._getDoc(window._doc(window._db,"comissaria","users")).then(s=>{if(s.exists())setSavedNames(s.data().list||[]);}).catch(()=>{});
           const unsubI=window._onSnapshot(window._doc(window._db,"comissaria","items"),snap=>{
             if(snap.exists()){const sv=snap.data().list||[];setItems(INIT.map(i=>{const f=sv.find(s=>s.id===i.id);return f?migrate(f):migrate(i);}));}
@@ -214,8 +219,27 @@
           const unsubM=window._onSnapshot(window._doc(window._db,"comissaria","movements"),snap=>{if(snap.exists())setMovs(snap.data().list||[]);});
           return()=>{unsubI();unsubM();};
         };
+
         let cleanup;
-        if(window._fbReady){cleanup=setup();}else{const h=()=>{cleanup=setup();};window.addEventListener("fbReady",h,{once:true});}
+        if(window._fbReady){
+          // Firebase já carregou antes do React — roda direto
+          cleanup=setup();
+        } else {
+          // Firebase ainda carregando — aguarda o evento
+          const h=()=>{ cleanup=setup(); };
+          window.addEventListener("fbReady",h,{once:true});
+          // Segurança: se demorar mais de 8s, mostra erro
+          const timeout=setTimeout(()=>{
+            window.removeEventListener("fbReady",h);
+            setFbErr("Tempo esgotado. Verifique sua conexão com a internet e recarregue.");
+            setLoading(false);
+          },8000);
+          return()=>{
+            clearTimeout(timeout);
+            window.removeEventListener("fbReady",h);
+            if(cleanup)cleanup();
+          };
+        }
         return()=>{if(cleanup)cleanup();};
       },[]);
 
