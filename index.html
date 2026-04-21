@@ -163,6 +163,17 @@
       return{label:"Em estoque",color:"#4ade80",bg:"rgba(74,222,128,.15)",dot:"#22c55e"};
     }
     function fmtTs(ts){ if(!ts)return""; return new Date(ts).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}); }
+    function validadeStatus(v){
+      if(!v) return null;
+      const hoje=new Date(); hoje.setHours(0,0,0,0);
+      const val=new Date(v+"T00:00:00");
+      const diff=Math.floor((val-hoje)/(1000*60*60*24));
+      if(diff<0)  return{label:"VENCIDO",   color:"#f87171",bg:"rgba(248,113,113,.18)",dot:"#ef4444",dias:diff};
+      if(diff<=7) return{label:"VENCE EM "+diff+"D",color:"#fb923c",bg:"rgba(251,146,60,.18)", dot:"#f97316",dias:diff};
+      if(diff<=30)return{label:"VENCE EM "+diff+"D",color:"#facc15",bg:"rgba(250,204,21,.15)", dot:"#ca8a04",dias:diff};
+      return{label:"Válido",color:"#4ade80",bg:"rgba(74,222,128,.12)",dot:"#22c55e",dias:diff};
+    }
+    function fmtValidade(v){ if(!v)return""; const[y,m,d]=v.split("-"); return`${d}/${m}/${y}`; }
 
     function App(){
       const[items,setItems]=useState(INIT.map(migrate));
@@ -184,7 +195,7 @@
       const[adjLoc,setAdjLoc]=useState("Armário");
       const[adjQ,setAdjQ]=useState(0);
       const[itmM,setItmM]=useState(null);
-      const[itmF,setItmF]=useState({name:"",brand:"",size:"",type:"BEBIDAS",unit:""});
+      const[itmF,setItmF]=useState({name:"",brand:"",size:"",type:"BEBIDAS",unit:"",validade:""});
       const[delC,setDelC]=useState(null);
       const[uModal,setUModal]=useState(false);
       const[uName,setUName]=useState("");
@@ -213,18 +224,36 @@
       const saveMovs=async nx=>{const sl=nx.slice(-300);setMovs(sl);await window._setDoc(window._doc(window._db,"comissaria","movements"),{list:sl});};
 
       const handleMove=async()=>{
-        if(!modal||!mLoc)return;
+        if(!modal)return;
         const{item,type}=modal;
         const qty=Math.max(1,parseInt(mQty)||1),ts=Date.now();
         const locs={...item.locations};
-        if(type==="entrada") locs[mLoc]=(locs[mLoc]||0)+qty;
-        else locs[mLoc]=Math.max(0,(locs[mLoc]||0)-qty);
-        const before=total(item),after=Object.values(locs).reduce((a,b)=>a+(b||0),0);
-        const nx=items.map(i=>i.id===item.id?{...i,locations:locs,lastBy:user,lastAt:ts,lastAction:`${type==="entrada"?"Entrada":"Saída"} · ${mLoc}`}:i);
-        const mv={id:ts,itemId:item.id,itemName:item.name,brand:item.brand,type,qty,loc:mLoc,user,ts,before,after,note:mNote};
+        const before=total(item);
+
+        if(type==="entrada"){
+          // Nova compra: entra no Armário sempre
+          locs["Armário"]=(locs["Armário"]||0)+qty;
+        } else if(type==="transferir"){
+          // Move do Armário para outro local — total não muda
+          if(!mLoc)return;
+          const dispArmario=locs["Armário"]||0;
+          const real=Math.min(qty,dispArmario);
+          locs["Armário"]=dispArmario-real;
+          locs[mLoc]=(locs[mLoc]||0)+real;
+        } else {
+          // Saída: produto consumido — sai do local escolhido
+          if(!mLoc)return;
+          locs[mLoc]=Math.max(0,(locs[mLoc]||0)-qty);
+        }
+
+        const after=Object.values(locs).reduce((a,b)=>a+(b||0),0);
+        const actionLabel=type==="entrada"?"Entrada · Armário":type==="transferir"?`Transferido → ${mLoc}`:`Saída · ${mLoc}`;
+        const nx=items.map(i=>i.id===item.id?{...i,locations:locs,lastBy:user,lastAt:ts,lastAction:actionLabel}:i);
+        const mv={id:ts,itemId:item.id,itemName:item.name,brand:item.brand,type,qty,loc:type==="entrada"?"Armário":mLoc,user,ts,before,after,note:mNote};
         await saveItems(nx);await saveMovs([...movs,mv]);
         setModal(null);setMLoc("");setMQty(1);setMNote("");
-        showToast(`${type==="entrada"?"Entrada":"Saída"} em ${mLoc} — ${item.name}`);
+        const msg=type==="entrada"?`+${qty} no Armário — ${item.name}`:type==="transferir"?`Transferido para ${mLoc} — ${item.name}`:`Saída de ${mLoc} — ${item.name}`;
+        showToast(msg);
       };
 
       const handleAdj=async()=>{
@@ -239,8 +268,8 @@
       };
 
       const openItm=item=>{
-        if(item==="new")setItmF({name:"",brand:"",size:"",type:"BEBIDAS",unit:""});
-        else setItmF({name:item.name,brand:item.brand||"",size:item.size||"",type:item.type,unit:item.unit||""});
+        if(item==="new")setItmF({name:"",brand:"",size:"",type:"BEBIDAS",unit:"",validade:""});
+        else setItmF({name:item.name,brand:item.brand||"",size:item.size||"",type:item.type,unit:item.unit||"",validade:item.validade||""});
         setItmM(item);
       };
       const handleSaveItm=async()=>{
@@ -275,6 +304,11 @@
         if(crt.length){t+=`🟠 *CRÍTICO — PEDIR URGENTE (${crt.length})*\n`;crt.forEach(i=>{t+=`• ${i.name}${i.brand?` (${i.brand})`:""} — ${total(i)} unid.\n`;});t+="\n";}
         if(nec.length){t+=`🟡 *NECESSÁRIO (${nec.length})*\n`;nec.forEach(i=>{t+=`• ${i.name}${i.brand?` (${i.brand})`:""} — ${total(i)} unid.\n`;});t+="\n";}
         if(!esg.length&&!crt.length&&!nec.length)t+=`✅ Todos os produtos em estoque!\n`;
+        // Validade warnings
+        const vencidos=items.filter(i=>i.validade&&validadeStatus(i.validade)&&validadeStatus(i.validade).dias<0);
+        const vencendo=items.filter(i=>i.validade&&validadeStatus(i.validade)&&validadeStatus(i.validade).dias>=0&&validadeStatus(i.validade).dias<=7);
+        if(vencidos.length){t+=`\n🚨 *PRODUTOS VENCIDOS (${vencidos.length})*\n`;vencidos.forEach(i=>{t+=`• ${i.name} — VENCIDO em ${fmtValidade(i.validade)}\n`;});t+="\n";}
+        if(vencendo.length){t+=`⏰ *VENCENDO EM 7 DIAS (${vencendo.length})*\n`;vencendo.forEach(i=>{t+=`• ${i.name} — ${fmtValidade(i.validade)} (${validadeStatus(i.validade).label})\n`;});t+="\n";}
         return t+`\n_Enviado via App Comissaria Avantto_`;
       };
       const rptCompleto=()=>{
@@ -286,7 +320,8 @@
           items.filter(i=>i.type===tp).forEach(i=>{
             const st=getStatus(i),tot=total(i);
             const ic=st.label==="Em estoque"?"✅":st.label==="Esgotado"?"🔴":st.label==="Crítico"?"🟠":st.label==="Necessário"?"🟡":"⚪";
-            t+=`${ic} ${i.name}${i.brand?" — "+i.brand:""}: ${tot} ${i.unit||"unid"}\n`;
+            const vs2=i.validade?validadeStatus(i.validade):null;
+            const vstr=vs2?(vs2.dias<0?` ⚠ VENCIDO(${fmtValidade(i.validade)})`:vs2.dias<=30?` 📅 Val:${fmtValidade(i.validade)}`:""):"";            t+=`${ic} ${i.name}${i.brand?" — "+i.brand:""}: ${tot} ${i.unit||"unid"}${vstr}\n`;
             if(i.locations){const lp=LOCS.filter(l=>(i.locations[l]||0)>0).map(l=>`${l}: ${i.locations[l]}`);if(lp.length)t+=`   (${lp.join(" | ")})\n`;}
           });
           t+="\n";
@@ -396,9 +431,12 @@
                       })}
                     </div>
 
-                    {/* Status + quem mexeu por último */}
+                    {/* Status + validade + quem mexeu por último */}
                     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:5}}>
-                      <span style={{fontSize:10,padding:"2px 8px",borderRadius:20,background:st.bg,color:st.color,fontWeight:600}}>{st.label}</span>
+                      <div style={{display:"flex",alignItems:"center",gap:5,flexWrap:"wrap"}}>
+                        <span style={{fontSize:10,padding:"2px 8px",borderRadius:20,background:st.bg,color:st.color,fontWeight:600}}>{st.label}</span>
+                        {item.validade&&(()=>{const vs=validadeStatus(item.validade);if(!vs)return null;return(<span style={{fontSize:10,padding:"2px 8px",borderRadius:20,background:vs.bg,color:vs.color,fontWeight:600,display:"flex",alignItems:"center",gap:3}}>{vs.dias<0?"⚠":"📅"} {vs.label} ({fmtValidade(item.validade)})</span>);})()}
+                      </div>
                       {item.lastBy?(
                         <div style={{display:"flex",alignItems:"center",gap:5,background:"rgba(201,168,76,.08)",border:"1px solid rgba(201,168,76,.2)",borderRadius:20,padding:"3px 10px"}}>
                           <span style={{fontSize:11,color:"#c9a84c",fontWeight:700}}>✎ {item.lastBy}</span>
@@ -407,13 +445,14 @@
                         </div>
                       ):<div style={{fontSize:9,color:"#2d3748"}}>Sem edições</div>}
                     </div>
+                    </div>
 
                     {/* Ações */}
-                    <div style={{display:"flex",gap:5}}>
-                      <button style={{flex:1,background:"rgba(34,197,94,.12)",border:"1px solid rgba(34,197,94,.25)",borderRadius:8,padding:"7px 2px",color:"#4ade80",fontSize:10,fontWeight:600,cursor:"pointer"}} onClick={()=>{setModal({item,type:"entrada"});setMLoc("");setMQty(1);setMNote("");}}>+ Entrada</button>
-                      <button style={{flex:1,background:"rgba(248,113,113,.1)",border:"1px solid rgba(248,113,113,.22)",borderRadius:8,padding:"7px 2px",color:"#f87171",fontSize:10,fontWeight:600,cursor:"pointer"}} onClick={()=>{setModal({item,type:"saida"});setMLoc("");setMQty(1);setMNote("");}}>− Saída</button>
-                      <button style={{flex:1,background:"rgba(148,163,184,.08)",border:"1px solid rgba(148,163,184,.18)",borderRadius:8,padding:"7px 2px",color:"#94a3b8",fontSize:10,fontWeight:600,cursor:"pointer"}} onClick={()=>{setAdjM(item);setAdjLoc("Armário");setAdjQ(item.locations?.["Armário"]||0);}}>✏ Ajustar</button>
-                      <button style={{flex:1,background:"rgba(99,102,241,.08)",border:"1px solid rgba(99,102,241,.22)",borderRadius:8,padding:"7px 2px",color:"#818cf8",fontSize:10,fontWeight:600,cursor:"pointer"}} onClick={()=>openItm(item)}>⚙ Editar</button>
+                    <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+                      <button style={{flex:"1 1 45%",background:"rgba(34,197,94,.12)",border:"1px solid rgba(34,197,94,.25)",borderRadius:8,padding:"8px 2px",color:"#4ade80",fontSize:10,fontWeight:600,cursor:"pointer"}} onClick={()=>{setModal({item,type:"entrada"});setMLoc("");setMQty(1);setMNote("");}}>+ Entrada</button>
+                      <button style={{flex:"1 1 45%",background:"rgba(250,204,21,.1)",border:"1px solid rgba(250,204,21,.25)",borderRadius:8,padding:"8px 2px",color:"#facc15",fontSize:10,fontWeight:600,cursor:"pointer"}} onClick={()=>{setModal({item,type:"transferir"});setMLoc("");setMQty(1);setMNote("");}}>⇄ Transferir</button>
+                      <button style={{flex:"1 1 45%",background:"rgba(248,113,113,.1)",border:"1px solid rgba(248,113,113,.22)",borderRadius:8,padding:"8px 2px",color:"#f87171",fontSize:10,fontWeight:600,cursor:"pointer"}} onClick={()=>{setModal({item,type:"saida"});setMLoc("");setMQty(1);setMNote("");}}>− Consumo</button>
+                      <button style={{flex:"1 1 45%",background:"rgba(148,163,184,.08)",border:"1px solid rgba(148,163,184,.18)",borderRadius:8,padding:"8px 2px",color:"#94a3b8",fontSize:10,fontWeight:600,cursor:"pointer"}} onClick={()=>{setAdjM(item);setAdjLoc("Armário");setAdjQ(item.locations?.["Armário"]||0);}}>✏ Ajustar</button>
                     </div>
                   </div>
                 );
@@ -481,6 +520,23 @@
                   );
                 })}
               </>}
+              {/* Validade alerts */}
+              {(()=>{
+                const vencidos=items.filter(i=>i.validade&&validadeStatus(i.validade)&&validadeStatus(i.validade).dias<0);
+                const vencendo=items.filter(i=>i.validade&&validadeStatus(i.validade)&&validadeStatus(i.validade).dias>=0&&validadeStatus(i.validade).dias<=30);
+                if(!vencidos.length&&!vencendo.length)return null;
+                return(<>
+                  <div style={{fontSize:10,fontWeight:600,letterSpacing:1.5,color:"#f87171",marginTop:16,marginBottom:8}}>📅 VALIDADE</div>
+                  {vencidos.map(item=>(<div key={"v"+item.id} style={{background:"rgba(248,113,113,.08)",borderLeft:"3px solid #ef4444",borderRadius:10,padding:"10px 12px",marginBottom:6,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <div><div style={{fontSize:12,fontWeight:500,color:"#e2e8f0"}}>{item.name}</div><div style={{fontSize:10,color:"#4a5568"}}>{item.brand}</div></div>
+                    <span style={{fontSize:11,padding:"2px 8px",borderRadius:20,background:"rgba(248,113,113,.2)",color:"#f87171",fontWeight:700,flexShrink:0}}>⚠ VENCIDO {fmtValidade(item.validade)}</span>
+                  </div>))}
+                  {vencendo.map(item=>{const vs=validadeStatus(item.validade);return(<div key={"ve"+item.id} style={{background:vs.bg,borderLeft:`3px solid ${vs.dot}`,borderRadius:10,padding:"10px 12px",marginBottom:6,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <div><div style={{fontSize:12,fontWeight:500,color:"#e2e8f0"}}>{item.name}</div><div style={{fontSize:10,color:"#4a5568"}}>{item.brand}</div></div>
+                    <span style={{fontSize:11,padding:"2px 8px",borderRadius:20,background:vs.bg,color:vs.color,fontWeight:700,flexShrink:0}}>📅 {fmtValidade(item.validade)}</span>
+                  </div>);})}
+                </>);
+              })()}
             </div>
           )}
 
@@ -529,21 +585,54 @@
             <div style={OV} onClick={e=>e.target===e.currentTarget&&setModal(null)}>
               <div style={SH}>
                 <div style={HDL}></div>
-                <div style={{fontSize:10,letterSpacing:2,color:modal.type==="entrada"?"#4ade80":"#f87171",textAlign:"center",marginBottom:4}}>{modal.type==="entrada"?"▲ ENTRADA":"▼ SAÍDA"}</div>
+                {modal.type==="entrada"&&<div style={{fontSize:10,letterSpacing:2,color:"#4ade80",textAlign:"center",marginBottom:4}}>▲ NOVA ENTRADA</div>}
+                {modal.type==="transferir"&&<div style={{fontSize:10,letterSpacing:2,color:"#facc15",textAlign:"center",marginBottom:4}}>⇄ TRANSFERÊNCIA</div>}
+                {modal.type==="saida"&&<div style={{fontSize:10,letterSpacing:2,color:"#f87171",textAlign:"center",marginBottom:4}}>▼ SAÍDA / CONSUMO</div>}
                 <div style={{fontFamily:"'Rajdhani',sans-serif",fontSize:17,fontWeight:600,color:"#e2e8f0",textAlign:"center",marginBottom:2}}>{modal.item.name}</div>
-                <div style={{fontSize:11,color:"#4a5568",textAlign:"center",marginBottom:16}}>Total em estoque: {total(modal.item)}</div>
-                <div style={SL}>{modal.type==="entrada"?"DESTINO DO PRODUTO":"LOCAL DE SAÍDA"}</div>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7,marginBottom:16}}>
-                  {LOCS.map(loc=>{
-                    const lc=LOC_C[loc],on=mLoc===loc,qty=modal.item.locations?.[loc]||0;
-                    return(
-                      <button key={loc} onClick={()=>setMLoc(loc)} style={{padding:"10px 8px",borderRadius:9,background:on?lc.bg:"rgba(255,255,255,.04)",border:`1px solid ${on?lc.c+"60":"rgba(255,255,255,.07)"}`,color:on?lc.c:"#94a3b8",fontSize:11,fontWeight:500,cursor:"pointer",textAlign:"left"}}>
-                        <div style={{fontWeight:600}}>{loc}</div>
-                        <div style={{fontSize:9,opacity:.7,marginTop:1}}>atual: {qty}</div>
-                      </button>
-                    );
-                  })}
+
+                {/* Resumo dos locais */}
+                <div style={{display:"flex",flexWrap:"wrap",gap:4,justifyContent:"center",marginBottom:14}}>
+                  {LOCS.map(l=>{const qty=modal.item.locations?.[l]||0,lc=LOC_C[l];return(<span key={l} style={{fontSize:10,padding:"2px 8px",borderRadius:20,background:qty>0?lc.bg:"rgba(255,255,255,.03)",color:qty>0?lc.c:"#2d3748",border:`1px solid ${qty>0?lc.c+"40":"rgba(255,255,255,.05)"}`}}>{l}: {qty}</span>);})}
                 </div>
+
+                {/* Entrada: só mostra info, sem escolher local */}
+                {modal.type==="entrada"&&(
+                  <div style={{background:"rgba(34,197,94,.08)",border:"1px solid rgba(34,197,94,.2)",borderRadius:10,padding:"12px",marginBottom:16,textAlign:"center"}}>
+                    <div style={{fontSize:12,color:"#4ade80",fontWeight:600,marginBottom:4}}>Produto entrará no Armário</div>
+                    <div style={{fontSize:10,color:"#4a5568"}}>O Armário é o estoque principal. Use Transferir para distribuir aos locais.</div>
+                  </div>
+                )}
+
+                {/* Transferir: escolhe destino (exceto Armário) */}
+                {modal.type==="transferir"&&(<>
+                  <div style={SL}>DESTINO (sai do Armário → vai para:)</div>
+                  <div style={{background:"rgba(250,204,21,.06)",border:"1px solid rgba(250,204,21,.18)",borderRadius:8,padding:"8px 10px",marginBottom:10,fontSize:10,color:"#a16207"}}>
+                    Armário disponível: <strong style={{color:"#facc15"}}>{modal.item.locations?.["Armário"]||0}</strong> unid.
+                  </div>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7,marginBottom:16}}>
+                    {LOCS.filter(l=>l!=="Armário").map(loc=>{
+                      const lc=LOC_C[loc],on=mLoc===loc,qty=modal.item.locations?.[loc]||0;
+                      return(<button key={loc} onClick={()=>setMLoc(loc)} style={{padding:"10px 8px",borderRadius:9,background:on?lc.bg:"rgba(255,255,255,.04)",border:`1px solid ${on?lc.c+"60":"rgba(255,255,255,.07)"}`,color:on?lc.c:"#94a3b8",fontSize:11,fontWeight:500,cursor:"pointer",textAlign:"left"}}>
+                        <div style={{fontWeight:600}}>{loc}</div>
+                        <div style={{fontSize:9,opacity:.7,marginTop:1}}>tem: {qty}</div>
+                      </button>);
+                    })}
+                  </div>
+                </>)}
+
+                {/* Saída: escolhe de qual local saiu */}
+                {modal.type==="saida"&&(<>
+                  <div style={SL}>LOCAL DE ONDE SAIU (consumido)</div>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7,marginBottom:16}}>
+                    {LOCS.map(loc=>{
+                      const lc=LOC_C[loc],on=mLoc===loc,qty=modal.item.locations?.[loc]||0;
+                      return(<button key={loc} onClick={()=>setMLoc(loc)} disabled={qty===0} style={{padding:"10px 8px",borderRadius:9,background:on?lc.bg:qty===0?"rgba(255,255,255,.02)":"rgba(255,255,255,.04)",border:`1px solid ${on?lc.c+"60":qty===0?"rgba(255,255,255,.03)":"rgba(255,255,255,.07)"}`,color:on?lc.c:qty===0?"#1f2937":"#94a3b8",fontSize:11,fontWeight:500,cursor:qty===0?"default":"pointer",textAlign:"left",opacity:qty===0?.4:1}}>
+                        <div style={{fontWeight:600}}>{loc}</div>
+                        <div style={{fontSize:9,opacity:.7,marginTop:1}}>disponível: {qty}</div>
+                      </button>);
+                    })}
+                  </div>
+                </>)}
                 <div style={SL}>QUANTIDADE</div>
                 <div style={{display:"flex",alignItems:"center",gap:10,background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.07)",borderRadius:9,padding:"7px 10px",marginBottom:12}}>
                   <button onClick={()=>setMQty(Math.max(1,mQty-1))} style={{width:30,height:30,borderRadius:7,background:"rgba(255,255,255,.07)",color:"#e2e8f0",fontSize:16,border:"none",cursor:"pointer"}}>−</button>
@@ -552,8 +641,10 @@
                 </div>
                 <div style={SL}>OBSERVAÇÃO (opcional)</div>
                 <textarea placeholder="Ex: Reposição voo SP-001..." value={mNote} onChange={e=>setMNote(e.target.value)} style={{width:"100%",background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.07)",borderRadius:8,padding:"8px 10px",color:"#e2e8f0",fontSize:12,marginBottom:14,resize:"none",height:46}}/>
-                <button onClick={handleMove} disabled={!mLoc} style={{width:"100%",padding:"13px",borderRadius:11,background:!mLoc?"rgba(255,255,255,.04)":modal.type==="entrada"?"#22c55e":"#ef4444",color:!mLoc?"#4a5568":"#fff",fontWeight:700,fontSize:14,fontFamily:"'Rajdhani',sans-serif",letterSpacing:1,border:"none",cursor:mLoc?"pointer":"default"}}>
-                  {!mLoc?"SELECIONE UM LOCAL":`CONFIRMAR ${modal.type==="entrada"?"ENTRADA":"SAÍDA"}`}
+                <button onClick={handleMove}
+                  disabled={modal.type!=="entrada"&&!mLoc}
+                  style={{width:"100%",padding:"13px",borderRadius:11,background:(modal.type==="entrada"||(modal.type!=="entrada"&&mLoc))?modal.type==="entrada"?"#22c55e":modal.type==="transferir"?"#ca8a04":"#ef4444":"rgba(255,255,255,.04)",color:(modal.type==="entrada"||(modal.type!=="entrada"&&mLoc))?"#fff":"#4a5568",fontWeight:700,fontSize:14,fontFamily:"'Rajdhani',sans-serif",letterSpacing:1,border:"none",cursor:(modal.type==="entrada"||(modal.type!=="entrada"&&mLoc))?"pointer":"default"}}>
+                  {modal.type==="entrada"?"CONFIRMAR ENTRADA":modal.type==="transferir"?(!mLoc?"ESCOLHA O DESTINO":"CONFIRMAR TRANSFERÊNCIA"):(!mLoc?"ESCOLHA O LOCAL":"CONFIRMAR SAÍDA")}
                 </button>
                 <button style={CB} onClick={()=>setModal(null)}>Cancelar</button>
               </div>
@@ -602,6 +693,12 @@
                     <input placeholder={ph} value={itmF[fld]} onChange={e=>setItmF(f=>({...f,[fld]:e.target.value}))} style={{width:"100%",background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.1)",borderRadius:8,padding:"10px 12px",color:"#e2e8f0",fontSize:13}}/>
                   </div>
                 ))}
+                <div style={{marginBottom:18}}>
+                  <div style={SL}>VALIDADE (opcional)</div>
+                  {itmF.validade&&validadeStatus(itmF.validade)&&(()=>{const vs=validadeStatus(itmF.validade);return(<div style={{fontSize:11,padding:"3px 10px",borderRadius:20,background:vs.bg,color:vs.color,fontWeight:600,marginBottom:8,display:"inline-block"}}>{vs.label}</div>);})()}
+                  <input type="date" value={itmF.validade||""} onChange={e=>setItmF(f=>({...f,validade:e.target.value}))} style={{width:"100%",background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.1)",borderRadius:8,padding:"10px 12px",color:itmF.validade?"#e2e8f0":"#4a5568",fontSize:13,colorScheme:"dark"}}/>
+                  {itmF.validade&&<button onClick={()=>setItmF(f=>({...f,validade:""}))} style={{background:"none",border:"none",color:"#4a5568",fontSize:10,cursor:"pointer",marginTop:4}}>✕ Remover validade</button>}
+                </div>
                 <div style={{marginBottom:18}}>
                   <div style={SL}>CATEGORIA</div>
                   <div style={{display:"flex",gap:7}}>
