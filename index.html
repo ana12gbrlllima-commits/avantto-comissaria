@@ -24,7 +24,7 @@
   </style>
 </head>
 <body>
-  <div id="root"><div style="height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0b0f1a;color:#c9a84c;font-family:'Rajdhani',sans-serif;letter-spacing:3px;font-size:20px;font-weight:700;gap:10px"><div>AVANTTO</div><div style="font-size:11px;color:#4a5568;letter-spacing:2px">CARREGANDO...</div></div></div>
+  <div id="root"></div>
 
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
@@ -792,30 +792,6 @@
   <!-- Firebase compat (sem module, sem timing issue) -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-
-  <script>
-    try {
-      const app = firebase.initializeApp({
-        apiKey:"AIzaSyCa9L8_0a2to58o1x_eZMNyGvxlFw8lXTY",
-        authDomain:"avantto-comissaria.firebaseapp.com",
-        projectId:"avantto-comissaria",
-        storageBucket:"avantto-comissaria.firebasestorage.app",
-        messagingSenderId:"682125810550",
-        appId:"1:682125810550:web:3a3302b4bdf32c101b7857"
-      });
-      const db = firebase.firestore();
-      // Expose helpers using compat API
-      window._db = db;
-      window._doc = (db, col, docId) => db.collection(col).doc(docId);
-      window._setDoc = (ref, data) => ref.set(data);
-      window._onSnapshot = (ref, cb, err) => ref.onSnapshot(cb, err);
-      window._getDoc = (ref) => ref.get();
-      window._fbReady = true;
-    } catch(e) {
-      window._fbError = e.message;
-      window._fbReady = true;
-    }
-  </script>
 
   <script>
 const {
@@ -1587,7 +1563,7 @@ function App() {
   const [items, setItems] = useState(INIT.map(migrate));
   const [movs, setMovs] = useState([]);
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [fbErr, setFbErr] = useState(null);
   const [savedNames, setSavedNames] = useState([]);
   const [view, setView] = useState("items");
@@ -1616,38 +1592,54 @@ function App() {
   const [uName, setUName] = useState("");
   const [toast, setToast] = useState(null);
   useEffect(() => {
+    // 1. Mostra o app imediatamente com dados locais
     const saved = localStorage.getItem("avantto-user");
     if (saved) setUser(saved);else setUModal(true);
-    const setup = () => {
-      if (window._fbError) {
-        setFbErr(window._fbError);
-        setLoading(false);
-        return () => {};
+
+    // Tenta carregar cache local
+    try {
+      const cached = localStorage.getItem("avantto-items");
+      if (cached) {
+        const sv = JSON.parse(cached);
+        setItems(INIT.map(i => {
+          const f = sv.find(s => s.id === i.id);
+          return f ? migrate(f) : migrate(i);
+        }));
       }
-      if (!window._db) {
-        setFbErr("Firebase não inicializou. Verifique as credenciais.");
-        setLoading(false);
-        return () => {};
-      }
+      const cachedM = localStorage.getItem("avantto-movs");
+      if (cachedM) setMovs(JSON.parse(cachedM));
+      const cachedN = localStorage.getItem("avantto-names");
+      if (cachedN) setSavedNames(JSON.parse(cachedN));
+    } catch (e) {}
+
+    // 2. Conecta ao Firebase em segundo plano (sem bloquear)
+    const connect = () => {
+      if (!window._db) return;
       window._getDoc(window._doc(window._db, "comissaria", "users")).then(s => {
-        if (s.exists()) setSavedNames(s.data().list || []);
+        if (s.exists()) {
+          const n = s.data().list || [];
+          setSavedNames(n);
+          localStorage.setItem("avantto-names", JSON.stringify(n));
+        }
       }).catch(() => {});
       const unsubI = window._onSnapshot(window._doc(window._db, "comissaria", "items"), snap => {
         if (snap.exists()) {
           const sv = snap.data().list || [];
-          setItems(INIT.map(i => {
+          const nx = INIT.map(i => {
             const f = sv.find(s => s.id === i.id);
             return f ? migrate(f) : migrate(i);
-          }));
+          });
+          setItems(nx);
+          localStorage.setItem("avantto-items", JSON.stringify(nx));
         }
-        setLoading(false);
-      }, err => {
-        setFbErr(err.message);
-        setLoading(false);
-      });
+      }, () => {});
       const unsubM = window._onSnapshot(window._doc(window._db, "comissaria", "movements"), snap => {
-        if (snap.exists()) setMovs(snap.data().list || []);
-      });
+        if (snap.exists()) {
+          const mv = snap.data().list || [];
+          setMovs(mv);
+          localStorage.setItem("avantto-movs", JSON.stringify(mv));
+        }
+      }, () => {});
       return () => {
         unsubI();
         unsubM();
@@ -1655,27 +1647,14 @@ function App() {
     };
     let cleanup;
     if (window._fbReady) {
-      // Firebase já carregou antes do React — roda direto
-      cleanup = setup();
+      cleanup = connect();
     } else {
-      // Firebase ainda carregando — aguarda o evento
       const h = () => {
-        cleanup = setup();
+        cleanup = connect();
       };
       window.addEventListener("fbReady", h, {
         once: true
       });
-      // Segurança: se demorar mais de 8s, mostra erro
-      const timeout = setTimeout(() => {
-        window.removeEventListener("fbReady", h);
-        setFbErr("Tempo esgotado. Verifique sua conexão com a internet e recarregue.");
-        setLoading(false);
-      }, 8000);
-      return () => {
-        clearTimeout(timeout);
-        window.removeEventListener("fbReady", h);
-        if (cleanup) cleanup();
-      };
     }
     return () => {
       if (cleanup) cleanup();
@@ -1690,16 +1669,22 @@ function App() {
   };
   const saveItems = async nx => {
     setItems(nx);
-    await window._setDoc(window._doc(window._db, "comissaria", "items"), {
-      list: nx
-    });
+    localStorage.setItem("avantto-items", JSON.stringify(nx));
+    try {
+      if (window._db) await window._setDoc(window._doc(window._db, "comissaria", "items"), {
+        list: nx
+      });
+    } catch (e) {}
   };
   const saveMovs = async nx => {
     const sl = nx.slice(-300);
     setMovs(sl);
-    await window._setDoc(window._doc(window._db, "comissaria", "movements"), {
-      list: sl
-    });
+    localStorage.setItem("avantto-movs", JSON.stringify(sl));
+    try {
+      if (window._db) await window._setDoc(window._doc(window._db, "comissaria", "movements"), {
+        list: sl
+      });
+    } catch (e) {}
   };
   const handleMove = async () => {
     if (!modal) return;
@@ -2043,63 +2028,6 @@ function App() {
       cursor: "pointer"
     };
   };
-  if (loading) return /*#__PURE__*/React.createElement("div", {
-    style: {
-      height: "100vh",
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      justifyContent: "center",
-      background: "#0b0f1a",
-      color: "#c9a84c",
-      fontFamily: "'Rajdhani',sans-serif",
-      letterSpacing: 3,
-      fontSize: 20,
-      fontWeight: 700,
-      gap: 12
-    }
-  }, /*#__PURE__*/React.createElement("div", null, "AVANTTO"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 11,
-      color: "#4a5568",
-      letterSpacing: 2
-    }
-  }, "CARREGANDO..."));
-  if (fbErr) return /*#__PURE__*/React.createElement("div", {
-    style: {
-      height: "100vh",
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      justifyContent: "center",
-      background: "#0b0f1a",
-      padding: 24,
-      textAlign: "center"
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 32,
-      marginBottom: 12
-    }
-  }, "\u2699\uFE0F"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontFamily: "'Rajdhani',sans-serif",
-      fontSize: 18,
-      color: "#f87171",
-      marginBottom: 8
-    }
-  }, "Erro Firebase"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 11,
-      color: "#374151",
-      fontFamily: "monospace",
-      background: "rgba(255,255,255,.04)",
-      padding: "10px 14px",
-      borderRadius: 8,
-      maxWidth: 340,
-      wordBreak: "break-all"
-    }
-  }, fbErr));
   return /*#__PURE__*/React.createElement("div", {
     style: {
       background: "#0b0f1a",
