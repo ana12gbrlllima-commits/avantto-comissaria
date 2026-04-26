@@ -1601,10 +1601,9 @@ function App() {
       const cached = localStorage.getItem("avantto-items");
       if (cached) {
         const sv = JSON.parse(cached);
-        setItems(INIT.map(i => {
-          const f = sv.find(s => s.id === i.id);
-          return f ? migrate(f) : migrate(i);
-        }));
+        const fbIds = new Set(sv.map(i => i.id));
+        const initOnly = INIT.filter(i => !fbIds.has(i.id)).map(migrate);
+        setItems([...sv.map(migrate), ...initOnly]);
       }
       const cachedM = localStorage.getItem("avantto-movs");
       if (cachedM) setMovs(JSON.parse(cachedM));
@@ -1625,10 +1624,11 @@ function App() {
       const unsubI = window._onSnapshot(window._doc(window._db, "comissaria", "items"), snap => {
         if (snap.exists()) {
           const sv = snap.data().list || [];
-          const nx = INIT.map(i => {
-            const f = sv.find(s => s.id === i.id);
-            return f ? migrate(f) : migrate(i);
-          });
+          // Merge: start from Firebase data (source of truth)
+          // Add any INIT items not yet in Firebase (first load)
+          const fbIds = new Set(sv.map(i => i.id));
+          const initOnly = INIT.filter(i => !fbIds.has(i.id)).map(migrate);
+          const nx = [...sv.map(migrate), ...initOnly];
           setItems(nx);
           localStorage.setItem("avantto-items", JSON.stringify(nx));
         }
