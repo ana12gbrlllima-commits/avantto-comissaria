@@ -25,12 +25,8 @@
 </head>
 <body>
   <div id="root"></div>
-
-  <!-- React -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-
-  <!-- Firebase compat (carrega de forma síncrona, sem timing issues) -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
   <script>
@@ -43,8 +39,6 @@
       appId:"1:682125810550:web:3a3302b4bdf32c101b7857"
     });
   </script>
-
-  <!-- App (JSX pré-compilado, sem Babel no browser) -->
   <script>
 const {
   useState,
@@ -935,15 +929,12 @@ function App() {
     const unsubs = [];
     const sync = () => {
       unsubs.push(DB.subscribe("comissaria", "items", d => {
-        if (d && d.list && d.list.length > 0) {
-          // Firebase é a fonte da verdade — nunca re-adiciona itens deletados
-          const nx = d.list.map(migrate);
-          setItemsRaw(nx);
-          ls("av-items", nx);
-        } else if (d && (!d.list || d.list.length === 0)) {
-          // Firebase vazio = primeiro uso, semente com INIT
-          const nx = INIT.map(migrate);
-          DB.set("comissaria", "items", {list: nx});
+        if (d && d.list) {
+          const sv = d.list;
+          // Firebase is source of truth — keep all saved items, add missing INIT defaults
+          const fbIds = new Set(sv.map(i => i.id));
+          const defaults = INIT.filter(i => !fbIds.has(i.id)).map(migrate);
+          const nx = [...sv.map(migrate), ...defaults];
           setItemsRaw(nx);
           ls("av-items", nx);
         }
@@ -1164,12 +1155,16 @@ function App() {
     if (!delCat) return;
     const ts = Date.now();
     const toDelete = items.filter(i => i.type === delCat);
-    const newTrash = [...trash, ...toDelete.map(i => ({...i, deletedAt:ts, deletedBy:user||"?"}))];
+    const newTrash = [...trash, ...toDelete.map(i => ({
+      ...i,
+      deletedAt: ts,
+      deletedBy: user || "?"
+    }))];
     const newItems = items.filter(i => i.type !== delCat);
     await saveItems(newItems);
     await saveTrash(newTrash);
     setDelCat(null);
-    showToast(`${toDelete.length} itens de ${delCat} movidos para a lixeira`);
+    showToast(`${toDelete.length} itens movidos para a lixeira`);
   };
   const handleRestoreTrash = async item => {
     const restored = {
@@ -2181,14 +2176,13 @@ function App() {
     onClick: () => setDelCat(tp),
     style: {
       fontSize: 10,
-      padding: "3px 10px",
+      padding: "2px 10px",
       borderRadius: 20,
       background: "rgba(248,113,113,.1)",
       border: "1px solid rgba(248,113,113,.22)",
       color: "#f87171",
       cursor: "pointer",
-      fontWeight: 500,
-      marginLeft: "auto"
+      fontWeight: 500
     }
   }, "🗑 Deletar todos")), items.filter(i => i.type === tp).map(item => /*#__PURE__*/React.createElement("div", {
     key: item.id,
@@ -2919,10 +2913,7 @@ function App() {
       fontWeight: 700,
       cursor: "pointer"
     }
-  }, "Mover")))), uModal && /*#__PURE__*/React.createElement("div", {
-    style: {
-      position: "fixed",
-      insdelCat && /*#__PURE__*/React.createElement("div", {
+  }, "Mover")))), delCat && /*#__PURE__*/React.createElement("div", {
     style: {
       position: "fixed",
       inset: 0,
@@ -2943,14 +2934,65 @@ function App() {
       border: "1px solid rgba(248,113,113,.3)",
       textAlign: "center"
     }
-  }, /*#__PURE__*/React.createElement("div", {style:{fontSize:28,marginBottom:10}}, "\uD83D\uDDD1\uFE0F"),
-  /*#__PURE__*/React.createElement("div", {style:{fontSize:14,fontWeight:500,color:"#e2e8f0",marginBottom:6}}, "Deletar toda a categoria?"),
-  /*#__PURE__*/React.createElement("div", {style:{fontSize:12,color:"#4a5568",marginBottom:6}}, "Todos os itens de \"" + delCat + "\" ser\u00E3o movidos para a lixeira."),
-  /*#__PURE__*/React.createElement("div", {style:{fontSize:11,color:"#f87171",marginBottom:20}}, items.filter(i => i.type === delCat).length + " produto(s) ser\u00E3o removidos."),
-  /*#__PURE__*/React.createElement("div", {style:{display:"flex",gap:8}},
-    /*#__PURE__*/React.createElement("button", {onClick:()=>setDelCat(null),style:{flex:1,padding:"11px",borderRadius:9,background:"rgba(255,255,255,.05)",border:"1px solid rgba(255,255,255,.08)",color:"#94a3b8",fontSize:13,cursor:"pointer"}}, "Cancelar"),
-    /*#__PURE__*/React.createElement("button", {onClick:handleDelCat,style:{flex:1,padding:"11px",borderRadius:9,background:"#ef4444",border:"none",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}, "Deletar tudo")
-  ))), et: 0,
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 28,
+      marginBottom: 10
+    }
+  }, "🗑️"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 14,
+      fontWeight: 500,
+      color: "#e2e8f0",
+      marginBottom: 6
+    }
+  }, "Deletar toda a categoria?"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      color: "#4a5568",
+      marginBottom: 6
+    }
+  }, "Todos os itens de \"", delCat, "\" irão para a lixeira."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      color: "#f87171",
+      fontWeight: 600,
+      marginBottom: 20
+    }
+  }, items.filter(i => i.type === delCat).length, " produto(s) serão removidos"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => setDelCat(null),
+    style: {
+      flex: 1,
+      padding: "11px",
+      borderRadius: 9,
+      background: "rgba(255,255,255,.05)",
+      border: "1px solid rgba(255,255,255,.08)",
+      color: "#94a3b8",
+      fontSize: 13,
+      cursor: "pointer"
+    }
+  }, "Cancelar"), /*#__PURE__*/React.createElement("button", {
+    onClick: handleDelCat,
+    style: {
+      flex: 1,
+      padding: "11px",
+      borderRadius: 9,
+      background: "#ef4444",
+      border: "none",
+      color: "#fff",
+      fontSize: 13,
+      fontWeight: 700,
+      cursor: "pointer"
+    }
+  }, "Deletar tudo")))), uModal && /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "fixed",
+      inset: 0,
       background: "rgba(0,0,0,.87)",
       display: "flex",
       alignItems: "center",
