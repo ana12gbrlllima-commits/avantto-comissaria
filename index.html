@@ -809,7 +809,9 @@ const DB = {
     try {
       const db = firebase.firestore();
       return db.collection(col).doc(docId).onSnapshot(snap => {
-        if (snap.exists) cb(snap.data());
+        // Pass both data and exists flag so caller can distinguish
+        // "never created" (exists=false) from "exists but empty list" (exists=true, list=[])
+        cb(snap.exists ? snap.data() : null, snap.exists);
       }, () => {});
     } catch (e) {
       console.warn("FB subscribe error:", e);
@@ -928,18 +930,19 @@ function App() {
   useEffect(() => {
     const unsubs = [];
     const sync = () => {
-      unsubs.push(DB.subscribe("comissaria", "items", d => {
-        if (d && d.list && d.list.length > 0) {
-          // Firebase é a única fonte de verdade — nunca re-adiciona itens deletados
-          const nx = d.list.map(migrate);
-          setItemsRaw(nx);
-          ls("av-items", nx);
-        } else if (d && (!d.list || d.list.length === 0)) {
-          // Firebase vazio = primeiro uso, semear com INIT
+      unsubs.push(DB.subscribe("comissaria", "items", (d, exists) => {
+        if (!exists) {
+          // Documento nunca foi criado — primeiro uso, semear com INIT
           const nx = INIT.map(migrate);
           DB.set("comissaria", "items", {
             list: nx
           });
+          setItemsRaw(nx);
+          ls("av-items", nx);
+        } else if (d && d.list) {
+          // Documento existe — Firebase é a única fonte de verdade
+          // Lista vazia significa que o usuário deletou tudo (respeitar!)
+          const nx = d.list.map(migrate);
           setItemsRaw(nx);
           ls("av-items", nx);
         }
