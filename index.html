@@ -876,6 +876,7 @@ function App() {
     validade: ""
   });
   const [delC, setDelC] = useState(null);
+  const [delCat, setDelCat] = useState(null);
   const [uModal, setUModal] = useState(!lc("av-user"));
   const [uName, setUName] = useState("");
   const [toast, setToast] = useState(null);
@@ -1158,6 +1159,17 @@ function App() {
     setDelC(null);
     setItmM(null);
     showToast(`"${delC.name}" movido para a lixeira`);
+  };
+  const handleDelCat = async () => {
+    if (!delCat) return;
+    const ts = Date.now();
+    const toDelete = items.filter(i => i.type === delCat);
+    const newTrash = [...trash, ...toDelete.map(i => ({...i, deletedAt:ts, deletedBy:user||"?"}))];
+    const newItems = items.filter(i => i.type !== delCat);
+    await saveItems(newItems);
+    await saveTrash(newTrash);
+    setDelCat(null);
+    showToast(`${toDelete.length} itens de ${delCat} movidos para a lixeira`);
   };
   const handleRestoreTrash = async item => {
     const restored = {
@@ -2153,13 +2165,32 @@ function App() {
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 7
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
       fontSize: 10,
       fontWeight: 600,
       letterSpacing: 2,
-      color: CAT_C[tp],
-      marginBottom: 7
+      color: CAT_C[tp]
     }
-  }, tp), items.filter(i => i.type === tp).map(item => /*#__PURE__*/React.createElement("div", {
+  }, tp), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setDelCat(tp),
+    style: {
+      fontSize: 10,
+      padding: "3px 10px",
+      borderRadius: 20,
+      background: "rgba(248,113,113,.1)",
+      border: "1px solid rgba(248,113,113,.22)",
+      color: "#f87171",
+      cursor: "pointer",
+      fontWeight: 500,
+      marginLeft: "auto"
+    }
+  }, "🗑 Deletar todos")), items.filter(i => i.type === tp).map(item => /*#__PURE__*/React.createElement("div", {
     key: item.id,
     onClick: () => openItm(item),
     style: {
@@ -2891,7 +2922,35 @@ function App() {
   }, "Mover")))), uModal && /*#__PURE__*/React.createElement("div", {
     style: {
       position: "fixed",
+      insdelCat && /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "fixed",
       inset: 0,
+      background: "rgba(0,0,0,.85)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 400,
+      padding: 20
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "#111827",
+      borderRadius: 14,
+      padding: 24,
+      width: "100%",
+      maxWidth: 320,
+      border: "1px solid rgba(248,113,113,.3)",
+      textAlign: "center"
+    }
+  }, /*#__PURE__*/React.createElement("div", {style:{fontSize:28,marginBottom:10}}, "\uD83D\uDDD1\uFE0F"),
+  /*#__PURE__*/React.createElement("div", {style:{fontSize:14,fontWeight:500,color:"#e2e8f0",marginBottom:6}}, "Deletar toda a categoria?"),
+  /*#__PURE__*/React.createElement("div", {style:{fontSize:12,color:"#4a5568",marginBottom:6}}, "Todos os itens de \"" + delCat + "\" ser\u00E3o movidos para a lixeira."),
+  /*#__PURE__*/React.createElement("div", {style:{fontSize:11,color:"#f87171",marginBottom:20}}, items.filter(i => i.type === delCat).length + " produto(s) ser\u00E3o removidos."),
+  /*#__PURE__*/React.createElement("div", {style:{display:"flex",gap:8}},
+    /*#__PURE__*/React.createElement("button", {onClick:()=>setDelCat(null),style:{flex:1,padding:"11px",borderRadius:9,background:"rgba(255,255,255,.05)",border:"1px solid rgba(255,255,255,.08)",color:"#94a3b8",fontSize:13,cursor:"pointer"}}, "Cancelar"),
+    /*#__PURE__*/React.createElement("button", {onClick:handleDelCat,style:{flex:1,padding:"11px",borderRadius:9,background:"#ef4444",border:"none",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}, "Deletar tudo")
+  ))), et: 0,
       background: "rgba(0,0,0,.87)",
       display: "flex",
       alignItems: "center",
