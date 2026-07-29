@@ -70,16 +70,22 @@ const LOC_C = {
     bg: "rgba(201,168,76,.18)"
   }
 };
-const CATS = ["TODOS", "BEBIDAS", "ALIMENTOS", "MATERIAL"];
+const CATS = ["TODOS", "BEBIDAS", "ALIMENTOS", "MATERIAL", "LIMPEZA", "COMISSÁRIA", "GERAL"];
 const CAT_C = {
   BEBIDAS: "#38bdf8",
   ALIMENTOS: "#facc15",
-  MATERIAL: "#94a3b8"
+  MATERIAL: "#94a3b8",
+  LIMPEZA: "#34d399",
+  "COMISSÁRIA": "#f472b6",
+  GERAL: "#a78bfa"
 };
 const CAT_BG = {
   BEBIDAS: "rgba(56,189,248,.12)",
   ALIMENTOS: "rgba(250,204,21,.12)",
-  MATERIAL: "rgba(148,163,184,.12)"
+  MATERIAL: "rgba(148,163,184,.12)",
+  LIMPEZA: "rgba(52,211,153,.12)",
+  "COMISSÁRIA": "rgba(244,114,182,.12)",
+  GERAL: "rgba(167,139,250,.12)"
 };
 const EMPT_L = {
   "Armário": 0,
@@ -1247,7 +1253,7 @@ function App() {
       minute: "2-digit"
     });
     let t = `📋 *RELATÓRIO COMPLETO — AVANTTO*\n📅 ${now}\n👤 ${user || "—"}\n${"─".repeat(32)}\n\n`;
-    ["BEBIDAS", "ALIMENTOS", "MATERIAL"].forEach(tp => {
+    ["BEBIDAS", "ALIMENTOS", "MATERIAL", "LIMPEZA", "COMISSÁRIA", "GERAL"].forEach(tp => {
       t += `*${tp}*\n`;
       items.filter(i => i.type === tp).forEach(i => {
         const st = getStatus(i);
@@ -2142,7 +2148,7 @@ function App() {
       color: "#4a5568",
       marginBottom: 10
     }
-  }, items.length, " produtos"), ["BEBIDAS", "ALIMENTOS", "MATERIAL"].map(tp => /*#__PURE__*/React.createElement("div", {
+  }, items.length, " produtos"), ["BEBIDAS", "ALIMENTOS", "MATERIAL", "LIMPEZA", "COMISSÁRIA", "GERAL"].map(tp => /*#__PURE__*/React.createElement("div", {
     key: tp,
     style: {
       marginBottom: 18
@@ -2765,7 +2771,7 @@ function App() {
       display: "flex",
       gap: 7
     }
-  }, ["BEBIDAS", "ALIMENTOS", "MATERIAL"].map(t => /*#__PURE__*/React.createElement("button", {
+  }, ["BEBIDAS", "ALIMENTOS", "MATERIAL", "LIMPEZA", "COMISSÁRIA", "GERAL"].map(t => /*#__PURE__*/React.createElement("button", {
     key: t,
     onClick: () => setItmF(f => ({
       ...f,
