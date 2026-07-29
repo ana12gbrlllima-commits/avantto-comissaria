@@ -2308,11 +2308,35 @@ function App() {
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: 11,
-      color: "#4a5568",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
       marginBottom: 12
     }
-  }, "Itens excluídos ficam aqui. Você pode restaurar ou excluir permanentemente."), trash.length === 0 ? /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: "#4a5568"
+    }
+  }, "Itens excluídos ficam aqui. Você pode restaurar ou excluir permanentemente."), trash.length > 0 && /*#__PURE__*/React.createElement("button", {
+    onClick: async () => {
+      await saveTrash([]);
+      showToast("Lixeira esvaziada");
+    },
+    style: {
+      flexShrink: 0,
+      marginLeft: 8,
+      fontSize: 10,
+      padding: "4px 11px",
+      borderRadius: 20,
+      background: "rgba(248,113,113,.1)",
+      border: "1px solid rgba(248,113,113,.25)",
+      color: "#f87171",
+      cursor: "pointer",
+      fontWeight: 600,
+      whiteSpace: "nowrap"
+    }
+  }, "🗑 Esvaziar tudo")), trash.length === 0 ? /*#__PURE__*/React.createElement("div", {
     style: {
       textAlign: "center",
       color: "#4a5568",
