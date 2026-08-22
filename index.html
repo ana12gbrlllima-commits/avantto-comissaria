@@ -31,7 +31,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
   <script>
     firebase.initializeApp({
-      apiKey:"AIzaSyAR3mWjVVIdfehQ2Vx9AmR3lsiJEqC_d0U",
+      apiKey:"AIzaSyCa9L8_0a2to58o1x_eZMNyGvxlFw8lXTY",
       authDomain:"avantto-comissaria.firebaseapp.com",
       projectId:"avantto-comissaria",
       storageBucket:"avantto-comissaria.firebasestorage.app",
@@ -761,19 +761,22 @@ function validadeStatus(v) {
     label: "VENCIDO",
     color: "#f87171",
     bg: "rgba(248,113,113,.2)",
-    dias: diff
+    dias: diff,
+    urgency: 3
   };
   if (diff <= 7) return {
     label: "VENCE EM " + diff + "d",
     color: "#fb923c",
     bg: "rgba(251,146,60,.2)",
-    dias: diff
+    dias: diff,
+    urgency: 2
   };
   if (diff <= 30) return {
     label: "VENCE EM " + diff + "d",
     color: "#facc15",
     bg: "rgba(250,204,21,.15)",
-    dias: diff
+    dias: diff,
+    urgency: 1
   };
   return null;
 }
@@ -901,7 +904,7 @@ function App() {
     setSyncing(false);
   };
   const saveItems = async nx => {
-    setItems(nx);
+    ls("av-items", nx); // cache local, Firebase listener atualizará o estado
     await push("comissaria", "items", {
       list: nx
     });
@@ -990,10 +993,12 @@ function App() {
   const handleMove = async () => {
     if (!modal) return;
     const {
-      item,
+      item: modalItem,
       type
     } = modal;
     if (type !== "entrada" && !mLoc) return;
+    // Lê o item mais atualizado para evitar closure desatualizada
+    const item = items.find(i => i.id === modalItem.id) || modalItem;
     const qty = Math.max(1, parseInt(mQty) || 1);
     const ts = Date.now();
     const locs = {
@@ -1053,16 +1058,17 @@ function App() {
   // ── Adjust ───────────────────────────────────────────────────────────────
   const handleAdj = async () => {
     if (!adjM) return;
+    const freshItem = items.find(i => i.id === adjM.id) || adjM;
     const qty = Math.max(0, parseInt(adjQ) || 0);
     const ts = Date.now();
     const locs = {
-      ...adjM.locations,
+      ...freshItem.locations,
       [adjLoc]: qty
     };
-    const before = total(adjM);
+    const before = total(freshItem);
     const after = Object.values(locs).reduce((a, b) => a + (b || 0), 0);
     const updatedItem = {
-      ...adjM,
+      ...freshItem,
       locations: locs,
       lastBy: user,
       lastAt: ts,
@@ -1306,6 +1312,9 @@ function App() {
   const totOk = items.filter(i => getStatus(i).label === "Em estoque").length;
   const totLw = items.filter(i => ["Necessário", "Crítico"].includes(getStatus(i).label)).length;
   const totOut = items.filter(i => getStatus(i).label === "Esgotado").length;
+  const valdAlerts = items.filter(i => i.validade && validadeStatus(i.validade));
+  const valdCount = valdAlerts.length;
+  const totalAlerts = alerts.length + valdCount;
 
   // ── Shared style constants ────────────────────────────────────────────────
   const OV = {
@@ -1481,7 +1490,70 @@ function App() {
       color: "#4a5568",
       marginTop: 2
     }
-  }, l)))), /*#__PURE__*/React.createElement("div", {
+  }, l))), valdCount > 0 && /*#__PURE__*/React.createElement("div", {
+    onClick: () => setView("alerts"),
+    style: {
+      flex: "0 0 auto",
+      background: "rgba(251,146,60,.1)",
+      border: "1px solid rgba(251,146,60,.3)",
+      borderRadius: 10,
+      padding: "8px 14px",
+      textAlign: "center",
+      minWidth: 82,
+      cursor: "pointer"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 20,
+      fontWeight: 700,
+      fontFamily: "'Rajdhani',sans-serif",
+      color: "#fb923c",
+      lineHeight: 1
+    }
+  }, valdCount), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 9,
+      color: "#fb923c",
+      marginTop: 2
+    }
+  }, "📅 Validade"))), valdAlerts.some(i => validadeStatus(i.validade)?.urgency >= 2) && /*#__PURE__*/React.createElement("div", {
+    onClick: () => setView("alerts"),
+    style: {
+      margin: "0 12px 6px",
+      padding: "10px 14px",
+      background: "rgba(251,146,60,.1)",
+      border: "1px solid rgba(251,146,60,.3)",
+      borderRadius: 10,
+      display: "flex",
+      alignItems: "center",
+      gap: 10,
+      cursor: "pointer"
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 18
+    }
+  }, "⏰"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      fontWeight: 600,
+      color: "#fb923c"
+    }
+  }, valdAlerts.filter(i => validadeStatus(i.validade)?.dias < 0).length > 0 ? `${valdAlerts.filter(i => validadeStatus(i.validade)?.dias < 0).length} produto(s) VENCIDO(S)!` : `${valdAlerts.filter(i => validadeStatus(i.validade)?.urgency >= 2).length} produto(s) vencendo em breve`), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: "#4a5568"
+    }
+  }, "Toque para ver os detalhes")), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12,
+      color: "#4a5568"
+    }
+  }, "›")), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       borderBottom: "1px solid rgba(255,255,255,.05)",
@@ -1489,7 +1561,7 @@ function App() {
       overflowX: "auto",
       background: "rgba(11,15,26,.6)"
     }
-  }, [["items", "📦 Estoque"], ["history", "📋 Histórico"], ["alerts", `⚠️${alerts.length ? " (" + alerts.length + ")" : ""}`], ["reports", "📤 Relatório"], ["manage", "⚙️ Itens"], ["trash", `🗑️${trash.length ? " (" + trash.length + ")" : ""}`]].map(([v, l]) => /*#__PURE__*/React.createElement("button", {
+  }, [["items", "📦 Estoque"], ["history", "📋 Histórico"], ["alerts", `⚠️${totalAlerts ? " (" + totalAlerts + ")" : ""}`], ["reports", "📤 Relatório"], ["manage", "⚙️ Itens"], ["trash", `🗑️${trash.length ? " (" + trash.length + ")" : ""}`]].map(([v, l]) => /*#__PURE__*/React.createElement("button", {
     key: v,
     onClick: () => setView(v),
     style: {
@@ -3218,4 +3290,3 @@ ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(
   </script>
 </body>
 </html>
-''Update Firebase API key''
