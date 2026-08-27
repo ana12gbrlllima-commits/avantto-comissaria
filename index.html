@@ -45,6 +45,8 @@ const {
   useEffect,
   useRef
 } = React;
+
+// ─── Constantes ──────────────────────────────────────────────────────────────
 const LOCS = ["Armário", "Sala VIP", "Geladeira Pilotos", "Cestinha"];
 const LOC_C = {
   "Armário": {
@@ -85,6 +87,7 @@ const EMPT_L = {
   "Geladeira Pilotos": 0,
   "Cestinha": 0
 };
+const CAT_ORDER = ["BEBIDAS", "ALIMENTOS", "MATERIAL DE COMISSARIA", "MATERIAL DE LIMPEZA", "MATERIAL GERAL"];
 const INIT = [{
   id: 1,
   name: "Água S/ Gás",
@@ -701,6 +704,8 @@ const INIT = [{
   stock: 1,
   unit: "PCT"
 }];
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 function migrate(i) {
   if (i.locations) return i;
   const s = i.stock ?? 0;
@@ -742,21 +747,12 @@ function getStatus(i) {
     dot: "#22c55e"
   };
 }
-function fmtTs(ts) {
-  if (!ts) return "";
-  return new Date(ts).toLocaleString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit"
-  });
-}
 function validadeStatus(v) {
   if (!v) return null;
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
   const val = new Date(v + "T00:00:00");
-  const diff = Math.floor((val - hoje) / (1000 * 60 * 60 * 24));
+  const diff = Math.floor((val - hoje) / 86400000);
   if (diff < 0) return {
     label: "VENCIDO",
     color: "#f87171",
@@ -765,14 +761,14 @@ function validadeStatus(v) {
     urgency: 3
   };
   if (diff <= 7) return {
-    label: "VENCE EM " + diff + "d",
+    label: `VENCE EM ${diff}d`,
     color: "#fb923c",
     bg: "rgba(251,146,60,.2)",
     dias: diff,
     urgency: 2
   };
   if (diff <= 30) return {
-    label: "VENCE EM " + diff + "d",
+    label: `VENCE EM ${diff}d`,
     color: "#facc15",
     bg: "rgba(250,204,21,.15)",
     dias: diff,
@@ -785,74 +781,76 @@ function fmtValidade(v) {
   const [y, m, d] = v.split("-");
   return `${d}/${m}/${y}`;
 }
-
-// ─── Firebase helpers ────────────────────────────────────────────────────────
-const DB = {
-  async set(col, docId, data) {
-    try {
-      const db = firebase.firestore();
-      await db.collection(col).doc(docId).set(data);
-      return true;
-    } catch (e) {
-      console.warn("FB set error:", e);
-      return false;
-    }
-  },
-  async get(col, docId) {
-    try {
-      const db = firebase.firestore();
-      const snap = await db.collection(col).doc(docId).get();
-      return snap.exists ? snap.data() : null;
-    } catch (e) {
-      console.warn("FB get error:", e);
-      return null;
-    }
-  },
-  subscribe(col, docId, cb) {
-    try {
-      const db = firebase.firestore();
-      return db.collection(col).doc(docId).onSnapshot(snap => {
-        // Pass both data and exists flag so caller can distinguish
-        // "never created" (exists=false) from "exists but empty list" (exists=true, list=[])
-        cb(snap.exists ? snap.data() : null, snap.exists);
-      }, () => {});
-    } catch (e) {
-      console.warn("FB subscribe error:", e);
-      return () => {};
-    }
-  }
-};
-function lc(key) {
+function fmtTs(ts) {
+  if (!ts) return "";
+  return new Date(ts).toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+function lGet(k) {
   try {
-    return localStorage.getItem(key);
+    return localStorage.getItem(k);
   } catch (e) {
     return null;
   }
 }
-function ls(key, val) {
+function lSet(k, v) {
   try {
-    localStorage.setItem(key, JSON.stringify(val));
+    localStorage.setItem(k, JSON.stringify(v));
   } catch (e) {}
 }
-function lp(key) {
+function lParse(k) {
   try {
-    const v = lc(key);
+    const v = lGet(k);
     return v ? JSON.parse(v) : null;
   } catch (e) {
     return null;
   }
 }
 
+// ─── Firebase ────────────────────────────────────────────────────────────────
+function getDb() {
+  return firebase.firestore();
+}
+async function fbSet(col, id, data) {
+  try {
+    await getDb().collection(col).doc(id).set(data);
+    return true;
+  } catch (e) {
+    console.warn("Firebase write error:", e);
+    return false;
+  }
+}
+function fbListen(col, id, cb) {
+  try {
+    return getDb().collection(col).doc(id).onSnapshot(
+    // CRITICAL: includeMetadataChanges lets us check hasPendingWrites
+    {
+      includeMetadataChanges: true
+    }, snap => cb(snap.exists ? snap.data() : null, snap.exists, snap.metadata.hasPendingWrites), () => {});
+  } catch (e) {
+    console.warn("Firebase listen error:", e);
+    return () => {};
+  }
+}
+
 // ─── App ─────────────────────────────────────────────────────────────────────
 function App() {
-  const [items, setItemsRaw] = useState(() => {
-    const c = lp("av-items");
+  // State — initialized from localStorage cache for instant load
+  const [items, setItems] = useState(() => {
+    const c = lParse("av-items");
     return c ? c.map(migrate) : INIT.map(migrate);
   });
-  const [movs, setMovsRaw] = useState(() => lp("av-movs") || []);
-  const [trash, setTrashRaw] = useState(() => lp("av-trash") || []);
-  const [names, setNamesRaw] = useState(() => lp("av-names") || []);
-  const [user, setUser] = useState(() => lc("av-user") || null);
+  const [movs, setMovs] = useState(() => lParse("av-movs") || []);
+  const [trash, setTrash] = useState(() => lParse("av-trash") || []);
+  const [names, setNames] = useState(() => lParse("av-names") || []);
+  const [user, setUser] = useState(() => lGet("av-user") || null);
+  const [syncing, setSyncing] = useState(false);
+
+  // UI state
   const [view, setView] = useState("items");
   const [cat, setCat] = useState("TODOS");
   const [stF, setStF] = useState("Todos");
@@ -876,162 +874,148 @@ function App() {
   });
   const [delC, setDelC] = useState(null);
   const [delCat, setDelCat] = useState(null);
-  const [uModal, setUModal] = useState(!lc("av-user"));
+  const [uModal, setUModal] = useState(!lGet("av-user"));
   const [uName, setUName] = useState("");
   const [toast, setToast] = useState(null);
-  const [syncing, setSyncing] = useState(false);
 
-  // Persist + sync helpers
-  const setItems = nx => {
-    setItemsRaw(nx);
-    ls("av-items", nx);
-  };
-  const setMovs = nx => {
-    setMovsRaw(nx);
-    ls("av-movs", nx);
-  };
-  const setTrash = nx => {
-    setTrashRaw(nx);
-    ls("av-trash", nx);
-  };
-  const setNames = nx => {
-    setNamesRaw(nx);
-    ls("av-names", nx);
-  };
-  const push = async (col, docId, data) => {
-    setSyncing(true);
-    await DB.set(col, docId, data);
-    setSyncing(false);
-  };
+  // ── Firebase sync ───────────────────────────────────────────────────────
+  useEffect(() => {
+    const unsubs = [];
+
+    // Items listener
+    // KEY FIX: ignore snapshots with hasPendingWrites=true — those are our OWN writes
+    // that we already applied optimistically. Only use server-confirmed data (hasPendingWrites=false)
+    // OR when data comes from another user/device.
+    unsubs.push(fbListen("comissaria", "items", (data, exists, hasPendingWrites) => {
+      // Skip snapshots triggered by our own local writes (already applied optimistically)
+      if (hasPendingWrites) return;
+      if (!exists) {
+        // First time ever — seed with INIT
+        const nx = INIT.map(migrate);
+        fbSet("comissaria", "items", {
+          list: nx
+        });
+        setItems(nx);
+        lSet("av-items", nx);
+      } else if (data && data.list) {
+        // Server-confirmed data — use it as truth
+        const nx = data.list.map(migrate);
+        setItems(nx);
+        lSet("av-items", nx);
+      }
+    }));
+    unsubs.push(fbListen("comissaria", "movements", (data, exists, hasPending) => {
+      if (hasPending) return;
+      if (data && data.list) {
+        setMovs(data.list);
+        lSet("av-movs", data.list);
+      }
+    }));
+    unsubs.push(fbListen("comissaria", "trash", (data, exists, hasPending) => {
+      if (hasPending) return;
+      if (data && data.list) {
+        setTrash(data.list);
+        lSet("av-trash", data.list);
+      }
+    }));
+    unsubs.push(fbListen("comissaria", "users", (data, exists, hasPending) => {
+      if (hasPending) return;
+      if (data && data.list) {
+        setNames(data.list);
+        lSet("av-names", data.list);
+      }
+    }));
+    return () => unsubs.forEach(u => u());
+  }, []);
+
+  // ── Save helpers (optimistic update + Firebase) ─────────────────────────
+  // Optimistic: update React state immediately for snappy UX
+  // Firebase listener ignores hasPendingWrites=true, so no double-update
   const saveItems = async nx => {
-    ls("av-items", nx); // cache local, Firebase listener atualizará o estado
-    await push("comissaria", "items", {
+    setItems(nx);
+    lSet("av-items", nx);
+    setSyncing(true);
+    await fbSet("comissaria", "items", {
       list: nx
     });
+    setSyncing(false);
   };
   const saveMovs = async nx => {
     const sl = nx.slice(-500);
     setMovs(sl);
-    await push("comissaria", "movements", {
+    lSet("av-movs", sl);
+    await fbSet("comissaria", "movements", {
       list: sl
     });
   };
   const saveTrash = async nx => {
     setTrash(nx);
-    await push("comissaria", "trash", {
+    lSet("av-trash", nx);
+    await fbSet("comissaria", "trash", {
       list: nx
     });
   };
   const saveNames = async nx => {
     setNames(nx);
-    await push("comissaria", "users", {
+    lSet("av-names", nx);
+    await fbSet("comissaria", "users", {
       list: nx
     });
   };
-
-  // Firebase real-time sync on mount
-  useEffect(() => {
-    const unsubs = [];
-    const sync = () => {
-      unsubs.push(DB.subscribe("comissaria", "items", (d, exists) => {
-        if (!exists) {
-          // Documento nunca foi criado — primeiro uso, semear com INIT
-          const nx = INIT.map(migrate);
-          DB.set("comissaria", "items", {
-            list: nx
-          });
-          setItemsRaw(nx);
-          ls("av-items", nx);
-        } else if (d && d.list) {
-          // Documento existe — Firebase é a única fonte de verdade
-          // Lista vazia significa que o usuário deletou tudo (respeitar!)
-          const nx = d.list.map(migrate);
-          setItemsRaw(nx);
-          ls("av-items", nx);
-        }
-      }));
-      unsubs.push(DB.subscribe("comissaria", "movements", d => {
-        if (d && d.list) {
-          setMovsRaw(d.list);
-          ls("av-movs", d.list);
-        }
-      }));
-      unsubs.push(DB.subscribe("comissaria", "trash", d => {
-        if (d && d.list) {
-          setTrashRaw(d.list);
-          ls("av-trash", d.list);
-        }
-      }));
-      unsubs.push(DB.subscribe("comissaria", "users", d => {
-        if (d && d.list) {
-          setNamesRaw(d.list);
-          ls("av-names", d.list);
-        }
-      }));
-    };
-    // Wait for firebase to be available
-    if (typeof firebase !== "undefined" && firebase.apps && firebase.apps.length) {
-      sync();
-    } else {
-      const t = setTimeout(sync, 1000);
-      return () => {
-        clearTimeout(t);
-        unsubs.forEach(u => u());
-      };
-    }
-    return () => unsubs.forEach(u => u());
-  }, []);
   const showToast = (msg, ok = true) => {
     setToast({
       msg,
       ok
     });
-    setTimeout(() => setToast(null), 2800);
+    setTimeout(() => setToast(null), 2600);
   };
 
-  // ── Movement (entrada / transferir / saída) ──────────────────────────────
+  // ── Handlers ─────────────────────────────────────────────────────────────
   const handleMove = async () => {
     if (!modal) return;
     const {
-      item: modalItem,
+      itemId,
       type
     } = modal;
     if (type !== "entrada" && !mLoc) return;
-    // Lê o item mais atualizado para evitar closure desatualizada
-    const item = items.find(i => i.id === modalItem.id) || modalItem;
     const qty = Math.max(1, parseInt(mQty) || 1);
     const ts = Date.now();
+
+    // Always read freshest item from current state (avoids stale closure)
+    const item = items.find(i => i.id === itemId);
+    if (!item) return;
     const locs = {
       ...item.locations
     };
-    let actionLabel = "";
     if (type === "entrada") {
       locs["Armário"] = (locs["Armário"] || 0) + qty;
-      actionLabel = `Entrada · Armário`;
     } else if (type === "transferir") {
       const disp = locs["Armário"] || 0;
-      const real = Math.min(qty, disp);
-      if (real === 0) {
+      if (disp <= 0) {
         showToast("Armário sem estoque para transferir", false);
         return;
       }
+      const real = Math.min(qty, disp);
       locs["Armário"] = disp - real;
       locs[mLoc] = (locs[mLoc] || 0) + real;
-      actionLabel = `Transferido → ${mLoc}`;
     } else {
+      if ((locs[mLoc] || 0) <= 0) {
+        showToast(`Sem estoque em ${mLoc}`, false);
+        return;
+      }
       locs[mLoc] = Math.max(0, (locs[mLoc] || 0) - qty);
-      actionLabel = `Saída · ${mLoc}`;
     }
+    const actionLabel = type === "entrada" ? "Entrada · Armário" : type === "transferir" ? `Transferido → ${mLoc}` : `Saída · ${mLoc}`;
     const before = total(item);
     const after = Object.values(locs).reduce((a, b) => a + (b || 0), 0);
-    const updatedItem = {
+    const updated = {
       ...item,
       locations: locs,
       lastBy: user,
       lastAt: ts,
       lastAction: actionLabel
     };
-    const newItems = items.map(i => i.id === item.id ? updatedItem : i);
+    const newItems = items.map(i => i.id === item.id ? updated : i);
     const mv = {
       id: ts,
       itemId: item.id,
@@ -1046,40 +1030,38 @@ function App() {
       after,
       note: mNote
     };
-    await saveItems(newItems);
-    await saveMovs([...movs, mv]);
     setModal(null);
     setMLoc("");
     setMQty(1);
     setMNote("");
+    await saveItems(newItems);
+    await saveMovs([...movs, mv]);
     showToast(type === "entrada" ? `+${qty} no Armário — ${item.name}` : type === "transferir" ? `Transferido para ${mLoc}` : `Saída de ${mLoc} — ${item.name}`);
   };
-
-  // ── Adjust ───────────────────────────────────────────────────────────────
   const handleAdj = async () => {
     if (!adjM) return;
-    const freshItem = items.find(i => i.id === adjM.id) || adjM;
+    const item = items.find(i => i.id === adjM.id) || adjM;
     const qty = Math.max(0, parseInt(adjQ) || 0);
     const ts = Date.now();
     const locs = {
-      ...freshItem.locations,
+      ...item.locations,
       [adjLoc]: qty
     };
-    const before = total(freshItem);
+    const before = total(item);
     const after = Object.values(locs).reduce((a, b) => a + (b || 0), 0);
-    const updatedItem = {
-      ...freshItem,
+    const updated = {
+      ...item,
       locations: locs,
       lastBy: user,
       lastAt: ts,
       lastAction: `Ajuste · ${adjLoc}`
     };
-    const newItems = items.map(i => i.id === adjM.id ? updatedItem : i);
+    const newItems = items.map(i => i.id === item.id ? updated : i);
     const mv = {
       id: ts,
-      itemId: adjM.id,
-      itemName: adjM.name,
-      brand: adjM.brand || "",
+      itemId: item.id,
+      itemName: item.name,
+      brand: item.brand || "",
       type: "ajuste",
       qty,
       loc: adjLoc,
@@ -1089,13 +1071,11 @@ function App() {
       after,
       note: `Ajuste em ${adjLoc}`
     };
+    setAdjM(null);
     await saveItems(newItems);
     await saveMovs([...movs, mv]);
-    setAdjM(null);
-    showToast(`Ajuste salvo — ${adjM.name}`);
+    showToast(`Ajuste salvo — ${item.name}`);
   };
-
-  // ── Edit / Add item ──────────────────────────────────────────────────────
   const openItm = item => {
     if (item === "new") setItmF({
       name: "",
@@ -1144,11 +1124,9 @@ function App() {
       } : i);
       showToast(`"${itmF.name}" atualizado!`);
     }
-    await saveItems(newItems);
     setItmM(null);
+    await saveItems(newItems);
   };
-
-  // ── Delete → Trash ───────────────────────────────────────────────────────
   const handleDelItm = async () => {
     if (!delC) return;
     const ts = Date.now();
@@ -1159,25 +1137,25 @@ function App() {
     };
     const newItems = items.filter(i => i.id !== delC.id);
     const newTrash = [...trash, trashEntry];
-    await saveItems(newItems);
-    await saveTrash(newTrash);
     setDelC(null);
     setItmM(null);
+    await saveItems(newItems);
+    await saveTrash(newTrash);
     showToast(`"${delC.name}" movido para a lixeira`);
   };
   const handleDelCat = async () => {
     if (!delCat) return;
     const ts = Date.now();
     const toDelete = items.filter(i => i.type === delCat);
+    const newItems = items.filter(i => i.type !== delCat);
     const newTrash = [...trash, ...toDelete.map(i => ({
       ...i,
       deletedAt: ts,
       deletedBy: user || "?"
     }))];
-    const newItems = items.filter(i => i.type !== delCat);
+    setDelCat(null);
     await saveItems(newItems);
     await saveTrash(newTrash);
-    setDelCat(null);
     showToast(`${toDelete.length} itens movidos para a lixeira`);
   };
   const handleRestoreTrash = async item => {
@@ -1192,13 +1170,14 @@ function App() {
     await saveTrash(newTrash);
     showToast(`"${item.name}" restaurado!`);
   };
-  const handleEmptyTrash = async item => {
-    const newTrash = trash.filter(i => i.id !== item.id);
-    await saveTrash(newTrash);
-    showToast("Item excluído permanentemente");
+  const handleEmptyTrashItem = async item => {
+    await saveTrash(trash.filter(i => i.id !== item.id));
+    showToast("Item excluído definitivamente");
   };
-
-  // ── User ─────────────────────────────────────────────────────────────────
+  const handleEmptyTrashAll = async () => {
+    await saveTrash([]);
+    showToast("Lixeira esvaziada");
+  };
   const saveUser = async () => {
     if (!uName.trim()) return;
     const name = uName.trim();
@@ -1210,7 +1189,7 @@ function App() {
     await saveNames(updated);
   };
 
-  // ── Reports ───────────────────────────────────────────────────────────────
+  // ── Relatórios ──────────────────────────────────────────────────────────
   const rptWhats = () => {
     const now = new Date().toLocaleString("pt-BR", {
       day: "2-digit",
@@ -1222,27 +1201,27 @@ function App() {
     const esg = items.filter(i => getStatus(i).label === "Esgotado");
     const crt = items.filter(i => getStatus(i).label === "Crítico");
     const nec = items.filter(i => getStatus(i).label === "Necessário");
-    const venc = items.filter(i => i.validade && validadeStatus(i.validade) && validadeStatus(i.validade).dias < 0);
-    const vencendo = items.filter(i => i.validade && validadeStatus(i.validade) && validadeStatus(i.validade).dias >= 0);
+    const venc = items.filter(i => i.validade && validadeStatus(i.validade)?.dias < 0);
+    const vend = items.filter(i => i.validade && validadeStatus(i.validade)?.urgency >= 2 && validadeStatus(i.validade)?.dias >= 0);
     let t = `✈ *AVANTTO — Checklist Comissaria*\n📅 ${now}\n👤 ${user || "—"}\n\n`;
     if (esg.length) {
       t += `🔴 *ESGOTADOS (${esg.length})*\n`;
       esg.forEach(i => {
-        t += `• ${i.name} — 0\n`;
+        t += `• ${i.name}${i.brand ? ` (${i.brand})` : ""} — 0\n`;
       });
       t += "\n";
     }
     if (crt.length) {
       t += `🟠 *CRÍTICO (${crt.length})*\n`;
       crt.forEach(i => {
-        t += `• ${i.name} — ${total(i)}\n`;
+        t += `• ${i.name}${i.brand ? ` (${i.brand})` : ""} — ${total(i)}\n`;
       });
       t += "\n";
     }
     if (nec.length) {
       t += `🟡 *NECESSÁRIO (${nec.length})*\n`;
       nec.forEach(i => {
-        t += `• ${i.name} — ${total(i)}\n`;
+        t += `• ${i.name}${i.brand ? ` (${i.brand})` : ""} — ${total(i)}\n`;
       });
       t += "\n";
     }
@@ -1253,9 +1232,9 @@ function App() {
       });
       t += "\n";
     }
-    if (vencendo.length) {
+    if (vend.length) {
       t += `⏰ *VENCENDO EM BREVE*\n`;
-      vencendo.forEach(i => {
+      vend.forEach(i => {
         t += `• ${i.name} — vcto ${fmtValidade(i.validade)}\n`;
       });
       t += "\n";
@@ -1271,29 +1250,35 @@ function App() {
       hour: "2-digit",
       minute: "2-digit"
     });
-    let t = `📋 *RELATÓRIO COMPLETO — AVANTTO*\n📅 ${now}\n👤 ${user || "—"}\n${"─".repeat(32)}\n\n`;
-    ["BEBIDAS", "ALIMENTOS", "MATERIAL DE COMISSARIA", "MATERIAL DE LIMPEZA", "MATERIAL GERAL"].forEach(tp => {
+    const mes = new Date().toLocaleString("pt-BR", {
+      month: "long",
+      year: "numeric"
+    }).toUpperCase();
+    let t = `📋 *RELATÓRIO COMPLETO — AVANTTO*\n📅 ${now} · ${mes}\n👤 ${user || "—"}\n${"─".repeat(32)}\n\n`;
+    CAT_ORDER.forEach(tp => {
+      const grupo = items.filter(i => i.type === tp);
+      if (!grupo.length) return;
       t += `*${tp}*\n`;
-      items.filter(i => i.type === tp).forEach(i => {
-        const st = getStatus(i);
-        const tot = total(i);
+      grupo.forEach(i => {
+        const st = getStatus(i),
+          tot = total(i);
         const ic = st.label === "Em estoque" ? "✅" : st.label === "Esgotado" ? "🔴" : st.label === "Crítico" ? "🟠" : "🟡";
         const vs = i.validade ? validadeStatus(i.validade) : null;
-        const vstr = vs ? vs.dias < 0 ? " ⚠VENCIDO" : " 📅vcto " + fmtValidade(i.validade) : "";
-        t += `${ic} ${i.name}${i.brand ? " (" + i.brand + ")" : ""}: ${tot}${i.unit ? " " + i.unit : ""}${vstr}\n`;
-        const lp2 = LOCS.filter(l => (i.locations[l] || 0) > 0).map(l => `${l}:${i.locations[l]}`);
-        if (lp2.length) t += `   ${lp2.join(" | ")}\n`;
+        const vstr = vs ? vs.dias < 0 ? " ⚠VENCIDO" : ` 📅vcto ${fmtValidade(i.validade)}` : "";
+        t += `${ic} ${i.name}${i.brand ? ` (${i.brand})` : ""}: ${tot}${i.unit ? ` ${i.unit}` : ""}${vstr}\n`;
+        const lp = LOCS.filter(l => (i.locations[l] || 0) > 0).map(l => `${l}:${i.locations[l]}`);
+        if (lp.length) t += `   ${lp.join(" | ")}\n`;
       });
       t += "\n";
     });
     const ok = items.filter(i => getStatus(i).label === "Em estoque").length;
     const lw = items.filter(i => ["Necessário", "Crítico"].includes(getStatus(i).label)).length;
-    const ou = items.filter(i => getStatus(i).label === "Esgotado").length;
-    return t + `${"─".repeat(32)}\n✅ ${ok} ok | 🟡 ${lw} baixo | 🔴 ${ou} esgotado\n_App Comissaria Avantto_`;
+    const out = items.filter(i => getStatus(i).label === "Esgotado").length;
+    return t + `${"─".repeat(32)}\n✅ ${ok} ok | 🟡 ${lw} baixo | 🔴 ${out} esgotado\n_App Comissaria Avantto_`;
   };
   const copiar = (txt, msg) => navigator.clipboard.writeText(txt).then(() => showToast(msg)).catch(() => showToast("Erro ao copiar", false));
 
-  // ── Derived ───────────────────────────────────────────────────────────────
+  // ── Derived values ──────────────────────────────────────────────────────
   const filtered = items.filter(i => {
     if (cat !== "TODOS" && i.type !== cat) return false;
     if (stF !== "Todos") {
@@ -1309,18 +1294,25 @@ function App() {
     return true;
   });
   const alerts = items.filter(i => ["Esgotado", "Crítico", "Necessário"].includes(getStatus(i).label)).sort((a, b) => total(a) - total(b));
+  const valdAlerts = items.filter(i => i.validade && validadeStatus(i.validade));
   const totOk = items.filter(i => getStatus(i).label === "Em estoque").length;
   const totLw = items.filter(i => ["Necessário", "Crítico"].includes(getStatus(i).label)).length;
   const totOut = items.filter(i => getStatus(i).label === "Esgotado").length;
-  const valdAlerts = items.filter(i => i.validade && validadeStatus(i.validade));
-  const valdCount = valdAlerts.length;
-  const totalAlerts = alerts.length + valdCount;
+  const totalAlerts = alerts.length + valdAlerts.length;
 
-  // ── Shared style constants ────────────────────────────────────────────────
+  // Groups for estoque view
+  const groups = {};
+  filtered.forEach(i => {
+    if (!groups[i.type]) groups[i.type] = [];
+    groups[i.type].push(i);
+  });
+  const groupKeys = CAT_ORDER.filter(c => groups[c]).concat(Object.keys(groups).filter(c => !CAT_ORDER.includes(c)));
+
+  // ── Shared styles ────────────────────────────────────────────────────────
   const OV = {
     position: "fixed",
     inset: 0,
-    background: "rgba(0,0,0,.75)",
+    background: "rgba(0,0,0,.76)",
     display: "flex",
     alignItems: "flex-end",
     zIndex: 200,
@@ -1370,7 +1362,7 @@ function App() {
     cursor: "pointer"
   });
   const lChip = (l, on) => {
-    const lc2 = LOC_C[l] || {
+    const lc = LOC_C[l] || {
       c: "#c9a84c",
       bg: "rgba(201,168,76,.18)"
     };
@@ -1380,20 +1372,20 @@ function App() {
       borderRadius: 20,
       fontSize: 11,
       fontWeight: 500,
-      background: on ? lc2.bg : "rgba(255,255,255,.04)",
-      color: on ? lc2.c : "#4a5568",
-      border: `1px solid ${on ? lc2.c + "50" : "rgba(255,255,255,.07)"}`,
+      background: on ? lc.bg : "rgba(255,255,255,.04)",
+      color: on ? lc.c : "#4a5568",
+      border: `1px solid ${on ? lc.c + "50" : "rgba(255,255,255,.07)"}`,
       cursor: "pointer"
     };
   };
-  const locBtn = (loc, on, type = "") => {
-    const lc2 = LOC_C[loc];
+  const locBtn = (loc, on) => {
+    const lc = LOC_C[loc];
     return {
       padding: "10px 8px",
       borderRadius: 9,
-      background: on ? lc2.bg : "rgba(255,255,255,.04)",
-      border: `1px solid ${on ? lc2.c + "60" : "rgba(255,255,255,.07)"}`,
-      color: on ? lc2.c : "#94a3b8",
+      background: on ? lc.bg : "rgba(255,255,255,.04)",
+      border: `1px solid ${on ? lc.c + "60" : "rgba(255,255,255,.07)"}`,
+      color: on ? lc.c : "#94a3b8",
       fontSize: 11,
       fontWeight: 500,
       cursor: "pointer",
@@ -1441,7 +1433,7 @@ function App() {
       borderRadius: 10,
       letterSpacing: 0
     }
-  }, "sincronizando…")), /*#__PURE__*/React.createElement("div", {
+  }, "salvando…")), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 9,
       color: "#4a5568",
@@ -1490,7 +1482,7 @@ function App() {
       color: "#4a5568",
       marginTop: 2
     }
-  }, l))), valdCount > 0 && /*#__PURE__*/React.createElement("div", {
+  }, l))), valdAlerts.length > 0 && /*#__PURE__*/React.createElement("div", {
     onClick: () => setView("alerts"),
     style: {
       flex: "0 0 auto",
@@ -1510,7 +1502,7 @@ function App() {
       color: "#fb923c",
       lineHeight: 1
     }
-  }, valdCount), /*#__PURE__*/React.createElement("div", {
+  }, valdAlerts.length), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 9,
       color: "#fb923c",
@@ -1548,9 +1540,9 @@ function App() {
       fontSize: 10,
       color: "#4a5568"
     }
-  }, "Toque para ver os detalhes")), /*#__PURE__*/React.createElement("span", {
+  }, "Toque para ver detalhes")), /*#__PURE__*/React.createElement("span", {
     style: {
-      fontSize: 12,
+      fontSize: 14,
       color: "#4a5568"
     }
   }, "›")), /*#__PURE__*/React.createElement("div", {
@@ -1561,7 +1553,7 @@ function App() {
       overflowX: "auto",
       background: "rgba(11,15,26,.6)"
     }
-  }, [["items", "📦 Estoque"], ["history", "📋 Histórico"], ["alerts", `⚠️${totalAlerts ? " (" + totalAlerts + ")" : ""}`], ["reports", "📤 Relatório"], ["manage", "⚙️ Itens"], ["trash", `🗑️${trash.length ? " (" + trash.length + ")" : ""}`]].map(([v, l]) => /*#__PURE__*/React.createElement("button", {
+  }, [["items", "📦 Estoque"], ["history", "📋 Histórico"], ["alerts", `⚠️${totalAlerts ? ` (${totalAlerts})` : ""}`], ["reports", "📤 Relatório"], ["manage", "⚙️ Itens"], ["trash", `🗑️${trash.length ? ` (${trash.length})` : ""}`]].map(([v, l]) => /*#__PURE__*/React.createElement("button", {
     key: v,
     onClick: () => setView(v),
     style: {
@@ -1637,308 +1629,297 @@ function App() {
     style: {
       padding: "0 12px 90px"
     }
-  }, (() => {
-    // Group filtered items by category
-    const groups = {};
-    filtered.forEach(item => {
-      if (!groups[item.type]) groups[item.type] = [];
-      groups[item.type].push(item);
-    });
-    const catOrder = ["BEBIDAS", "ALIMENTOS", "MATERIAL DE COMISSARIA", "MATERIAL DE LIMPEZA", "MATERIAL GERAL"];
-    const keys = catOrder.filter(c => groups[c]).concat(Object.keys(groups).filter(c => !catOrder.includes(c)));
-    return keys.map(tp => /*#__PURE__*/React.createElement("div", {
-      key: tp,
+  }, groupKeys.map(tp => /*#__PURE__*/React.createElement("div", {
+    key: tp,
+    style: {
+      marginBottom: 20
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      padding: "6px 4px",
+      marginBottom: 8,
+      borderBottom: "1px solid rgba(255,255,255,.06)"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 6
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 6,
+      height: 6,
+      borderRadius: "50%",
+      background: CAT_C[tp] || "#94a3b8"
+    }
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      fontWeight: 600,
+      letterSpacing: 1.5,
+      color: CAT_C[tp] || "#94a3b8"
+    }
+  }, tp), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10,
+      color: "#4a5568"
+    }
+  }, "(", groups[tp].length, ")")), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setDelCat(tp),
+    style: {
+      fontSize: 10,
+      padding: "3px 10px",
+      borderRadius: 20,
+      background: "rgba(248,113,113,.1)",
+      border: "1px solid rgba(248,113,113,.22)",
+      color: "#f87171",
+      cursor: "pointer",
+      fontWeight: 500
+    }
+  }, "🗑 Deletar todos")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gap: 8
+    }
+  }, groups[tp].map(item => {
+    const st = getStatus(item);
+    const tot = total(item);
+    const vs = item.validade ? validadeStatus(item.validade) : null;
+    return /*#__PURE__*/React.createElement("div", {
+      key: item.id,
       style: {
-        marginBottom: 20
+        background: "rgba(255,255,255,.025)",
+        border: "1px solid rgba(255,255,255,.065)",
+        borderLeft: `2px solid ${CAT_C[tp] || "#94a3b8"}50`,
+        borderRadius: 12,
+        padding: "12px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 8
       }
     }, /*#__PURE__*/React.createElement("div", {
       style: {
         display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: "6px 4px",
-        marginBottom: 8,
-        borderBottom: "1px solid rgba(255,255,255,.06)"
+        alignItems: "flex-start",
+        gap: 10
       }
     }, /*#__PURE__*/React.createElement("div", {
       style: {
-        display: "flex",
-        alignItems: "center",
-        gap: 6
+        flex: 1,
+        minWidth: 0
       }
     }, /*#__PURE__*/React.createElement("div", {
       style: {
-        width: 6,
-        height: 6,
-        borderRadius: "50%",
-        background: CAT_C[tp] || "#94a3b8"
+        fontSize: 13,
+        fontWeight: 500,
+        color: "#e2e8f0",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap"
       }
-    }), /*#__PURE__*/React.createElement("span", {
-      style: {
-        fontSize: 11,
-        fontWeight: 600,
-        letterSpacing: 1.5,
-        color: CAT_C[tp] || "#94a3b8"
-      }
-    }, tp), /*#__PURE__*/React.createElement("span", {
+    }, item.name), /*#__PURE__*/React.createElement("div", {
       style: {
         fontSize: 10,
         color: "#4a5568"
       }
-    }, "(", groups[tp].length, ")")), /*#__PURE__*/React.createElement("button", {
-      onClick: () => setDelCat(tp),
+    }, [item.brand, item.size, item.unit].filter(Boolean).join(" · "))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        textAlign: "center",
+        flexShrink: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 24,
+        fontWeight: 700,
+        fontFamily: "'Rajdhani',sans-serif",
+        color: st.color,
+        lineHeight: 1
+      }
+    }, tot), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 8,
+        color: "#4a5568"
+      }
+    }, item.unit || "TOTAL"))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 4
+      }
+    }, LOCS.map(l => {
+      const qty = item.locations?.[l] || 0,
+        lc = LOC_C[l];
+      return /*#__PURE__*/React.createElement("span", {
+        key: l,
+        style: {
+          fontSize: 10,
+          padding: "2px 8px",
+          borderRadius: 20,
+          background: qty > 0 ? lc.bg : "rgba(255,255,255,.03)",
+          color: qty > 0 ? lc.c : "#2d3748",
+          border: `1px solid ${qty > 0 ? lc.c + "40" : "rgba(255,255,255,.05)"}`,
+          fontWeight: qty > 0 ? 600 : 400
+        }
+      }, l, ": ", qty);
+    })), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        flexWrap: "wrap",
+        gap: 5
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        gap: 5,
+        flexWrap: "wrap",
+        alignItems: "center"
+      }
+    }, /*#__PURE__*/React.createElement("span", {
       style: {
         fontSize: 10,
-        padding: "3px 10px",
+        padding: "2px 8px",
         borderRadius: 20,
-        background: "rgba(248,113,113,.1)",
-        border: "1px solid rgba(248,113,113,.22)",
-        color: "#f87171",
-        cursor: "pointer",
-        fontWeight: 500
+        background: st.bg,
+        color: st.color,
+        fontWeight: 600
       }
-    }, "🗑 Deletar todos")), /*#__PURE__*/React.createElement("div", {
+    }, st.label), vs && /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 10,
+        padding: "2px 8px",
+        borderRadius: 20,
+        background: vs.bg,
+        color: vs.color,
+        fontWeight: 600
+      }
+    }, vs.dias < 0 ? "⚠" : "📅", " ", vs.label)), item.lastBy && /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        alignItems: "center",
+        gap: 4,
+        background: "rgba(201,168,76,.08)",
+        border: "1px solid rgba(201,168,76,.18)",
+        borderRadius: 20,
+        padding: "2px 8px"
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 10,
+        color: "#c9a84c",
+        fontWeight: 700
+      }
+    }, "✎ ", item.lastBy), item.lastAction && /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 9,
+        color: "#4a5568"
+      }
+    }, "· ", item.lastAction), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 9,
+        color: "#374151"
+      }
+    }, "· ", fmtTs(item.lastAt)))), /*#__PURE__*/React.createElement("div", {
       style: {
         display: "grid",
-        gap: 8
+        gridTemplateColumns: "1fr 1fr",
+        gap: 5
       }
-    }, groups[tp].map(item => {
-      const st = getStatus(item),
-        tot = total(item);
-      const vs = item.validade ? validadeStatus(item.validade) : null;
-      return /*#__PURE__*/React.createElement("div", {
-        key: item.id,
-        style: {
-          background: "rgba(255,255,255,.025)",
-          border: "1px solid rgba(255,255,255,.065)",
-          borderLeft: `2px solid ${CAT_C[item.type] || "#94a3b8"}50`,
-          borderRadius: 12,
-          padding: "12px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 8
-        }
-      }, /*#__PURE__*/React.createElement("div", {
-        style: {
-          display: "flex",
-          alignItems: "flex-start",
-          gap: 10
-        }
-      }, /*#__PURE__*/React.createElement("div", {
-        style: {
-          flex: 1,
-          minWidth: 0
-        }
-      }, /*#__PURE__*/React.createElement("div", {
-        style: {
-          fontSize: 13,
-          fontWeight: 500,
-          color: "#e2e8f0",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap"
-        }
-      }, item.name), /*#__PURE__*/React.createElement("div", {
-        style: {
-          fontSize: 10,
-          color: "#4a5568"
-        }
-      }, [item.brand, item.size, item.unit].filter(Boolean).join(" · "))), /*#__PURE__*/React.createElement("div", {
-        style: {
-          textAlign: "center",
-          flexShrink: 0
-        }
-      }, /*#__PURE__*/React.createElement("div", {
-        style: {
-          fontSize: 24,
-          fontWeight: 700,
-          fontFamily: "'Rajdhani',sans-serif",
-          color: st.color,
-          lineHeight: 1
-        }
-      }, tot), /*#__PURE__*/React.createElement("div", {
-        style: {
-          fontSize: 8,
-          color: "#4a5568"
-        }
-      }, item.unit || "TOTAL"))), /*#__PURE__*/React.createElement("div", {
-        style: {
-          display: "flex",
-          flexWrap: "wrap",
-          gap: 4
-        }
-      }, LOCS.map(l => {
-        const qty = item.locations?.[l] || 0,
-          lc2 = LOC_C[l];
-        return /*#__PURE__*/React.createElement("span", {
-          key: l,
-          style: {
-            fontSize: 10,
-            padding: "2px 8px",
-            borderRadius: 20,
-            background: qty > 0 ? lc2.bg : "rgba(255,255,255,.03)",
-            color: qty > 0 ? lc2.c : "#2d3748",
-            border: `1px solid ${qty > 0 ? lc2.c + "40" : "rgba(255,255,255,.05)"}`,
-            fontWeight: qty > 0 ? 600 : 400
-          }
-        }, l, ": ", qty);
-      })), /*#__PURE__*/React.createElement("div", {
-        style: {
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          flexWrap: "wrap",
-          gap: 5
-        }
-      }, /*#__PURE__*/React.createElement("div", {
-        style: {
-          display: "flex",
-          gap: 5,
-          flexWrap: "wrap",
-          alignItems: "center"
-        }
-      }, /*#__PURE__*/React.createElement("span", {
-        style: {
-          fontSize: 10,
-          padding: "2px 8px",
-          borderRadius: 20,
-          background: st.bg,
-          color: st.color,
-          fontWeight: 600
-        }
-      }, st.label), vs && /*#__PURE__*/React.createElement("span", {
-        style: {
-          fontSize: 10,
-          padding: "2px 8px",
-          borderRadius: 20,
-          background: vs.bg,
-          color: vs.color,
-          fontWeight: 600
-        }
-      }, vs.dias < 0 ? "⚠" : "📅", " ", vs.label)), item.lastBy && /*#__PURE__*/React.createElement("div", {
-        style: {
-          display: "flex",
-          alignItems: "center",
-          gap: 4,
-          background: "rgba(201,168,76,.08)",
-          border: "1px solid rgba(201,168,76,.18)",
-          borderRadius: 20,
-          padding: "2px 8px"
-        }
-      }, /*#__PURE__*/React.createElement("span", {
-        style: {
-          fontSize: 10,
-          color: "#c9a84c",
-          fontWeight: 700
-        }
-      }, "✎ ", item.lastBy), item.lastAction && /*#__PURE__*/React.createElement("span", {
-        style: {
-          fontSize: 9,
-          color: "#4a5568"
-        }
-      }, "· ", item.lastAction), /*#__PURE__*/React.createElement("span", {
-        style: {
-          fontSize: 9,
-          color: "#374151"
-        }
-      }, "· ", fmtTs(item.lastAt)))), /*#__PURE__*/React.createElement("div", {
-        style: {
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 5
-        }
-      }, /*#__PURE__*/React.createElement("button", {
-        style: {
-          background: "rgba(34,197,94,.12)",
-          border: "1px solid rgba(34,197,94,.25)",
-          borderRadius: 8,
-          padding: "8px 4px",
-          color: "#4ade80",
-          fontSize: 11,
-          fontWeight: 600,
-          cursor: "pointer"
-        },
-        onClick: () => {
-          setModal({
-            item,
-            type: "entrada"
-          });
-          setMLoc("");
-          setMQty(1);
-          setMNote("");
-        }
-      }, "+ Entrada"), /*#__PURE__*/React.createElement("button", {
-        style: {
-          background: "rgba(250,204,21,.1)",
-          border: "1px solid rgba(250,204,21,.25)",
-          borderRadius: 8,
-          padding: "8px 4px",
-          color: "#facc15",
-          fontSize: 11,
-          fontWeight: 600,
-          cursor: "pointer"
-        },
-        onClick: () => {
-          setModal({
-            item,
-            type: "transferir"
-          });
-          setMLoc("");
-          setMQty(1);
-          setMNote("");
-        }
-      }, "⇄ Transferir"), /*#__PURE__*/React.createElement("button", {
-        style: {
-          background: "rgba(248,113,113,.1)",
-          border: "1px solid rgba(248,113,113,.22)",
-          borderRadius: 8,
-          padding: "8px 4px",
-          color: "#f87171",
-          fontSize: 11,
-          fontWeight: 600,
-          cursor: "pointer"
-        },
-        onClick: () => {
-          setModal({
-            item,
-            type: "saida"
-          });
-          setMLoc("");
-          setMQty(1);
-          setMNote("");
-        }
-      }, "− Consumo"), /*#__PURE__*/React.createElement("button", {
-        style: {
-          background: "rgba(148,163,184,.08)",
-          border: "1px solid rgba(148,163,184,.18)",
-          borderRadius: 8,
-          padding: "8px 4px",
-          color: "#94a3b8",
-          fontSize: 11,
-          fontWeight: 600,
-          cursor: "pointer"
-        },
-        onClick: () => {
-          setAdjM(item);
-          setAdjLoc("Armário");
-          setAdjQ(item.locations?.["Armário"] || 0);
-        }
-      }, "✏ Ajustar")), /*#__PURE__*/React.createElement("button", {
-        style: {
-          background: "rgba(99,102,241,.06)",
-          border: "1px solid rgba(99,102,241,.18)",
-          borderRadius: 8,
-          padding: "6px",
-          color: "#818cf8",
-          fontSize: 10,
-          fontWeight: 500,
-          cursor: "pointer",
-          width: "100%"
-        },
-        onClick: () => openItm(item)
-      }, "⚙ Editar produto"));
-    }))));
-  })())), view === "history" && /*#__PURE__*/React.createElement("div", {
+    }, /*#__PURE__*/React.createElement("button", {
+      style: {
+        background: "rgba(34,197,94,.12)",
+        border: "1px solid rgba(34,197,94,.25)",
+        borderRadius: 8,
+        padding: "8px 4px",
+        color: "#4ade80",
+        fontSize: 11,
+        fontWeight: 600,
+        cursor: "pointer"
+      },
+      onClick: () => {
+        setModal({
+          itemId: item.id,
+          type: "entrada"
+        });
+        setMLoc("");
+        setMQty(1);
+        setMNote("");
+      }
+    }, "+ Entrada"), /*#__PURE__*/React.createElement("button", {
+      style: {
+        background: "rgba(250,204,21,.1)",
+        border: "1px solid rgba(250,204,21,.25)",
+        borderRadius: 8,
+        padding: "8px 4px",
+        color: "#facc15",
+        fontSize: 11,
+        fontWeight: 600,
+        cursor: "pointer"
+      },
+      onClick: () => {
+        setModal({
+          itemId: item.id,
+          type: "transferir"
+        });
+        setMLoc("");
+        setMQty(1);
+        setMNote("");
+      }
+    }, "⇄ Transferir"), /*#__PURE__*/React.createElement("button", {
+      style: {
+        background: "rgba(248,113,113,.1)",
+        border: "1px solid rgba(248,113,113,.22)",
+        borderRadius: 8,
+        padding: "8px 4px",
+        color: "#f87171",
+        fontSize: 11,
+        fontWeight: 600,
+        cursor: "pointer"
+      },
+      onClick: () => {
+        setModal({
+          itemId: item.id,
+          type: "saida"
+        });
+        setMLoc("");
+        setMQty(1);
+        setMNote("");
+      }
+    }, "− Consumo"), /*#__PURE__*/React.createElement("button", {
+      style: {
+        background: "rgba(148,163,184,.08)",
+        border: "1px solid rgba(148,163,184,.18)",
+        borderRadius: 8,
+        padding: "8px 4px",
+        color: "#94a3b8",
+        fontSize: 11,
+        fontWeight: 600,
+        cursor: "pointer"
+      },
+      onClick: () => {
+        setAdjM(item);
+        setAdjLoc("Armário");
+        setAdjQ(item.locations?.["Armário"] || 0);
+      }
+    }, "✏ Ajustar")), /*#__PURE__*/React.createElement("button", {
+      style: {
+        background: "rgba(99,102,241,.06)",
+        border: "1px solid rgba(99,102,241,.18)",
+        borderRadius: 8,
+        padding: "6px",
+        color: "#818cf8",
+        fontSize: 10,
+        fontWeight: 500,
+        cursor: "pointer"
+      },
+      onClick: () => openItm(item)
+    }, "⚙ Editar produto"));
+  })))))), view === "history" && /*#__PURE__*/React.createElement("div", {
     style: {
       padding: "12px 12px 90px"
     }
@@ -1949,10 +1930,10 @@ function App() {
       padding: 40
     }
   }, "Nenhuma movimentação registrada.") : [...movs].reverse().map(m => {
-    const isAdj = m.type === "ajuste",
-      isTrans = m.type === "transferir";
+    const isAdj = m.type === "ajuste";
+    const isTrans = m.type === "transferir";
     const tc = isAdj ? "#94a3b8" : m.type === "entrada" ? "#4ade80" : isTrans ? "#facc15" : "#f87171";
-    const lc2 = LOC_C[m.loc] || {
+    const lc = LOC_C[m.loc] || {
       c: "#94a3b8",
       bg: "rgba(148,163,184,.15)"
     };
@@ -2012,8 +1993,8 @@ function App() {
         fontSize: 10,
         padding: "2px 7px",
         borderRadius: 20,
-        background: lc2.bg,
-        color: lc2.c,
+        background: lc.bg,
+        color: lc.c,
         fontWeight: 500
       }
     }, "📍 ", m.loc), /*#__PURE__*/React.createElement("span", {
@@ -2048,7 +2029,7 @@ function App() {
     style: {
       padding: "12px 12px 90px"
     }
-  }, alerts.length === 0 && /*#__PURE__*/React.createElement("div", {
+  }, alerts.length === 0 && valdAlerts.length === 0 && /*#__PURE__*/React.createElement("div", {
     style: {
       textAlign: "center",
       color: "#4ade80",
@@ -2060,7 +2041,7 @@ function App() {
       color: "#4a5568",
       marginBottom: 10
     }
-  }, totOut, " esgotados · ", totLw, " com estoque baixo"), alerts.map(item => {
+  }, totOut, " esgotados · ", totLw, " estoque baixo"), alerts.map(item => {
     const st = getStatus(item);
     return /*#__PURE__*/React.createElement("div", {
       key: item.id,
@@ -2124,57 +2105,61 @@ function App() {
         color: st.color
       }
     }, st.label))));
-  })), (() => {
-    const venc = items.filter(i => i.validade && validadeStatus(i.validade) && validadeStatus(i.validade).dias < 0);
-    const vend = items.filter(i => i.validade && validadeStatus(i.validade) && validadeStatus(i.validade).dias >= 0);
-    if (!venc.length && !vend.length) return null;
-    return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+  })), valdAlerts.length > 0 && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      fontWeight: 600,
+      letterSpacing: 1.5,
+      color: "#fb923c",
+      marginTop: alerts.length ? 16 : 0,
+      marginBottom: 8
+    }
+  }, "📅 VALIDADE"), valdAlerts.sort((a, b) => validadeStatus(a.validade).dias - validadeStatus(b.validade).dias).map(item => {
+    const vs = validadeStatus(item.validade);
+    return /*#__PURE__*/React.createElement("div", {
+      key: "v" + item.id,
+      style: {
+        background: "rgba(255,255,255,.025)",
+        borderLeft: `3px solid ${vs.dias < 0 ? "#ef4444" : "#f97316"}`,
+        borderRadius: 10,
+        padding: "10px 12px",
+        marginBottom: 6,
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center"
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12,
+        fontWeight: 500,
+        color: "#e2e8f0",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap"
+      }
+    }, item.name), /*#__PURE__*/React.createElement("div", {
       style: {
         fontSize: 10,
-        fontWeight: 600,
-        letterSpacing: 1.5,
-        color: "#f87171",
-        marginTop: 16,
-        marginBottom: 8
+        color: "#4a5568"
       }
-    }, "📅 VALIDADE"), [...venc, ...vend].map(item => {
-      const vs = validadeStatus(item.validade);
-      return /*#__PURE__*/React.createElement("div", {
-        key: "v" + item.id,
-        style: {
-          background: vs.bg.replace(".2", ".08"),
-          borderLeft: `3px solid ${vs.dias < 0 ? "#ef4444" : "#f97316"}`,
-          borderRadius: 10,
-          padding: "10px 12px",
-          marginBottom: 6,
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center"
-        }
-      }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
-        style: {
-          fontSize: 12,
-          fontWeight: 500,
-          color: "#e2e8f0"
-        }
-      }, item.name), /*#__PURE__*/React.createElement("div", {
-        style: {
-          fontSize: 10,
-          color: "#4a5568"
-        }
-      }, item.brand)), /*#__PURE__*/React.createElement("span", {
-        style: {
-          fontSize: 10,
-          padding: "2px 8px",
-          borderRadius: 20,
-          background: vs.bg,
-          color: vs.color,
-          fontWeight: 700,
-          flexShrink: 0
-        }
-      }, vs.dias < 0 ? "⚠ VENC." : "", " ", fmtValidade(item.validade)));
-    }));
-  })()), view === "reports" && /*#__PURE__*/React.createElement("div", {
+    }, item.brand)), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 10,
+        padding: "2px 8px",
+        borderRadius: 20,
+        background: vs.bg,
+        color: vs.color,
+        fontWeight: 700,
+        flexShrink: 0,
+        marginLeft: 8
+      }
+    }, vs.dias < 0 ? "⚠ VENCIDO" : "", " ", fmtValidade(item.validade)));
+  }))), view === "reports" && /*#__PURE__*/React.createElement("div", {
     style: {
       padding: "16px 12px 90px"
     }
@@ -2199,7 +2184,7 @@ function App() {
       color: "#4a5568",
       marginBottom: 10
     }
-  }, "Itens esgotados, baixo e vencidos"), /*#__PURE__*/React.createElement("pre", {
+  }, "Esgotados, estoque baixo e validade"), /*#__PURE__*/React.createElement("pre", {
     style: {
       background: "rgba(255,255,255,.03)",
       borderRadius: 8,
@@ -2297,84 +2282,88 @@ function App() {
       color: "#4a5568",
       marginBottom: 10
     }
-  }, items.length, " produtos"), ["BEBIDAS", "ALIMENTOS", "MATERIAL DE COMISSARIA", "MATERIAL DE LIMPEZA", "MATERIAL GERAL"].map(tp => /*#__PURE__*/React.createElement("div", {
-    key: tp,
-    style: {
-      marginBottom: 18
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      marginBottom: 7
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 10,
-      fontWeight: 600,
-      letterSpacing: 2,
-      color: CAT_C[tp]
-    }
-  }, tp), /*#__PURE__*/React.createElement("button", {
-    onClick: () => setDelCat(tp),
-    style: {
-      fontSize: 10,
-      padding: "2px 10px",
-      borderRadius: 20,
-      background: "rgba(248,113,113,.1)",
-      border: "1px solid rgba(248,113,113,.22)",
-      color: "#f87171",
-      cursor: "pointer",
-      fontWeight: 500
-    }
-  }, "🗑 Deletar todos")), items.filter(i => i.type === tp).map(item => /*#__PURE__*/React.createElement("div", {
-    key: item.id,
-    onClick: () => openItm(item),
-    style: {
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      padding: "10px 12px",
-      background: "rgba(255,255,255,.025)",
-      border: "1px solid rgba(255,255,255,.06)",
-      borderRadius: 9,
-      marginBottom: 4,
-      cursor: "pointer"
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      flex: 1,
-      minWidth: 0
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 12,
-      fontWeight: 500,
-      color: "#e2e8f0",
-      overflow: "hidden",
-      textOverflow: "ellipsis",
-      whiteSpace: "nowrap"
-    }
-  }, item.name), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 10,
-      color: "#4a5568"
-    }
-  }, [item.brand, item.size, item.unit].filter(Boolean).join(" · ") || "—")), item.lastBy && /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 9,
-      color: "#c9a84c",
-      marginRight: 6,
-      flexShrink: 0
-    }
-  }, "✎ ", item.lastBy), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 11,
-      color: "#6366f1",
-      flexShrink: 0
-    }
-  }, "Editar ›")))))), view === "trash" && /*#__PURE__*/React.createElement("div", {
+  }, items.length, " produtos"), CAT_ORDER.map(tp => {
+    const grupo = items.filter(i => i.type === tp);
+    if (!grupo.length) return null;
+    return /*#__PURE__*/React.createElement("div", {
+      key: tp,
+      style: {
+        marginBottom: 18
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        marginBottom: 7
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 10,
+        fontWeight: 600,
+        letterSpacing: 2,
+        color: CAT_C[tp]
+      }
+    }, tp, " (", grupo.length, ")"), /*#__PURE__*/React.createElement("button", {
+      onClick: () => setDelCat(tp),
+      style: {
+        fontSize: 10,
+        padding: "2px 10px",
+        borderRadius: 20,
+        background: "rgba(248,113,113,.1)",
+        border: "1px solid rgba(248,113,113,.22)",
+        color: "#f87171",
+        cursor: "pointer",
+        fontWeight: 500
+      }
+    }, "🗑 Deletar todos")), grupo.map(item => /*#__PURE__*/React.createElement("div", {
+      key: item.id,
+      onClick: () => openItm(item),
+      style: {
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: "10px 12px",
+        background: "rgba(255,255,255,.025)",
+        border: "1px solid rgba(255,255,255,.06)",
+        borderRadius: 9,
+        marginBottom: 4,
+        cursor: "pointer"
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12,
+        fontWeight: 500,
+        color: "#e2e8f0",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap"
+      }
+    }, item.name), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 10,
+        color: "#4a5568"
+      }
+    }, [item.brand, item.size, item.unit].filter(Boolean).join(" · ") || "—")), item.lastBy && /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 9,
+        color: "#c9a84c",
+        marginRight: 6,
+        flexShrink: 0
+      }
+    }, "✎ ", item.lastBy), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 11,
+        color: "#6366f1",
+        flexShrink: 0
+      }
+    }, "Editar ›"))));
+  })), view === "trash" && /*#__PURE__*/React.createElement("div", {
     style: {
       padding: "12px 12px 90px"
     }
@@ -2390,11 +2379,8 @@ function App() {
       fontSize: 11,
       color: "#4a5568"
     }
-  }, "Itens excluídos ficam aqui. Você pode restaurar ou excluir permanentemente."), trash.length > 0 && /*#__PURE__*/React.createElement("button", {
-    onClick: async () => {
-      await saveTrash([]);
-      showToast("Lixeira esvaziada");
-    },
+  }, "Itens excluídos — restaure ou exclua definitivamente."), trash.length > 0 && /*#__PURE__*/React.createElement("button", {
+    onClick: handleEmptyTrashAll,
     style: {
       flexShrink: 0,
       marginLeft: 8,
@@ -2425,24 +2411,13 @@ function App() {
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "flex-start",
-      marginBottom: 6
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      flex: 1,
-      minWidth: 0
+      marginBottom: 8
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 12,
       fontWeight: 500,
-      color: "#e2e8f0",
-      overflow: "hidden",
-      textOverflow: "ellipsis",
-      whiteSpace: "nowrap"
+      color: "#e2e8f0"
     }
   }, item.name), /*#__PURE__*/React.createElement("div", {
     style: {
@@ -2452,10 +2427,10 @@ function App() {
   }, item.brand, " · ", item.type), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 9,
-      color: "#4a5568",
+      color: "#374151",
       marginTop: 2
     }
-  }, "Excluído por ", item.deletedBy, " · ", fmtTs(item.deletedAt)))), /*#__PURE__*/React.createElement("div", {
+  }, "Excluído por ", item.deletedBy, " · ", fmtTs(item.deletedAt))), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       gap: 6
@@ -2474,7 +2449,7 @@ function App() {
       cursor: "pointer"
     }
   }, "↩ Restaurar"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => handleEmptyTrash(item),
+    onClick: () => handleEmptyTrashItem(item),
     style: {
       flex: 1,
       padding: "8px",
@@ -2486,118 +2461,121 @@ function App() {
       fontWeight: 600,
       cursor: "pointer"
     }
-  }, "✕ Excluir definitivo"))))), modal && /*#__PURE__*/React.createElement("div", {
-    style: OV,
-    onClick: e => e.target === e.currentTarget && setModal(null)
-  }, /*#__PURE__*/React.createElement("div", {
-    style: SH
-  }, /*#__PURE__*/React.createElement("div", {
-    style: HDL
-  }), modal.type === "entrada" && /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 10,
-      letterSpacing: 2,
-      color: "#4ade80",
-      textAlign: "center",
-      marginBottom: 4
-    }
-  }, "▲ NOVA ENTRADA"), modal.type === "transferir" && /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 10,
-      letterSpacing: 2,
-      color: "#facc15",
-      textAlign: "center",
-      marginBottom: 4
-    }
-  }, "⇄ TRANSFERÊNCIA"), modal.type === "saida" && /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 10,
-      letterSpacing: 2,
-      color: "#f87171",
-      textAlign: "center",
-      marginBottom: 4
-    }
-  }, "▼ SAÍDA / CONSUMO"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontFamily: "'Rajdhani',sans-serif",
-      fontSize: 17,
-      fontWeight: 600,
-      color: "#e2e8f0",
-      textAlign: "center",
-      marginBottom: 10
-    }
-  }, modal.item.name), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      flexWrap: "wrap",
-      gap: 4,
-      justifyContent: "center",
-      marginBottom: 14
-    }
-  }, LOCS.map(l => {
-    const qty = modal.item.locations?.[l] || 0,
-      lc2 = LOC_C[l];
-    return /*#__PURE__*/React.createElement("span", {
-      key: l,
+  }, "✕ Excluir"))))), modal && (() => {
+    const item = items.find(i => i.id === modal.itemId);
+    if (!item) return null;
+    const {
+      type
+    } = modal;
+    return /*#__PURE__*/React.createElement("div", {
+      style: OV,
+      onClick: e => e.target === e.currentTarget && setModal(null)
+    }, /*#__PURE__*/React.createElement("div", {
+      style: SH
+    }, /*#__PURE__*/React.createElement("div", {
+      style: HDL
+    }), type === "entrada" && /*#__PURE__*/React.createElement("div", {
       style: {
         fontSize: 10,
-        padding: "2px 8px",
-        borderRadius: 20,
-        background: qty > 0 ? lc2.bg : "rgba(255,255,255,.03)",
-        color: qty > 0 ? lc2.c : "#2d3748"
+        letterSpacing: 2,
+        color: "#4ade80",
+        textAlign: "center",
+        marginBottom: 4
       }
-    }, l, ": ", qty);
-  })), modal.type === "entrada" && /*#__PURE__*/React.createElement("div", {
-    style: {
-      background: "rgba(34,197,94,.08)",
-      border: "1px solid rgba(34,197,94,.2)",
-      borderRadius: 10,
-      padding: "12px",
-      marginBottom: 16,
-      textAlign: "center"
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 12,
-      color: "#4ade80",
-      fontWeight: 600,
-      marginBottom: 4
-    }
-  }, "Produto entrará no Armário"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 10,
-      color: "#4a5568"
-    }
-  }, "Use \"Transferir\" para distribuir para outros locais.")), modal.type === "transferir" && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
-    style: SL
-  }, "DESTINO (sai do Armário → vai para)"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      background: "rgba(250,204,21,.06)",
-      border: "1px solid rgba(250,204,21,.18)",
-      borderRadius: 8,
-      padding: "8px 10px",
-      marginBottom: 10,
-      fontSize: 11,
-      color: "#a16207"
-    }
-  }, "Armário: ", /*#__PURE__*/React.createElement("strong", {
-    style: {
-      color: "#facc15"
-    }
-  }, modal.item.locations?.["Armário"] || 0), " disponível"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "grid",
-      gridTemplateColumns: "1fr 1fr",
-      gap: 7,
-      marginBottom: 16
-    }
-  }, LOCS.filter(l => l !== "Armário").map(loc => {
-    const on = mLoc === loc,
-      qty = modal.item.locations?.[loc] || 0;
-    return /*#__PURE__*/React.createElement("button", {
+    }, "▲ NOVA ENTRADA"), type === "transferir" && /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 10,
+        letterSpacing: 2,
+        color: "#facc15",
+        textAlign: "center",
+        marginBottom: 4
+      }
+    }, "⇄ TRANSFERÊNCIA"), type === "saida" && /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 10,
+        letterSpacing: 2,
+        color: "#f87171",
+        textAlign: "center",
+        marginBottom: 4
+      }
+    }, "▼ SAÍDA / CONSUMO"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontFamily: "'Rajdhani',sans-serif",
+        fontSize: 17,
+        fontWeight: 600,
+        color: "#e2e8f0",
+        textAlign: "center",
+        marginBottom: 10
+      }
+    }, item.name), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 4,
+        justifyContent: "center",
+        marginBottom: 14
+      }
+    }, LOCS.map(l => {
+      const qty = item.locations?.[l] || 0,
+        lc = LOC_C[l];
+      return /*#__PURE__*/React.createElement("span", {
+        key: l,
+        style: {
+          fontSize: 10,
+          padding: "2px 8px",
+          borderRadius: 20,
+          background: qty > 0 ? lc.bg : "rgba(255,255,255,.03)",
+          color: qty > 0 ? lc.c : "#2d3748"
+        }
+      }, l, ": ", qty);
+    })), type === "entrada" && /*#__PURE__*/React.createElement("div", {
+      style: {
+        background: "rgba(34,197,94,.08)",
+        border: "1px solid rgba(34,197,94,.2)",
+        borderRadius: 10,
+        padding: "12px",
+        marginBottom: 16,
+        textAlign: "center"
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12,
+        color: "#4ade80",
+        fontWeight: 600,
+        marginBottom: 4
+      }
+    }, "Produto entrará no Armário"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 10,
+        color: "#4a5568"
+      }
+    }, "Use \"Transferir\" para distribuir para outros locais.")), type === "transferir" && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+      style: SL
+    }, "DESTINO (sai do Armário → vai para)"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        background: "rgba(250,204,21,.06)",
+        border: "1px solid rgba(250,204,21,.18)",
+        borderRadius: 8,
+        padding: "8px 10px",
+        marginBottom: 10,
+        fontSize: 11,
+        color: "#a16207"
+      }
+    }, "Armário: ", /*#__PURE__*/React.createElement("strong", {
+      style: {
+        color: "#facc15"
+      }
+    }, item.locations?.["Armário"] || 0), " disponível"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr",
+        gap: 7,
+        marginBottom: 16
+      }
+    }, LOCS.filter(l => l !== "Armário").map(loc => /*#__PURE__*/React.createElement("button", {
       key: loc,
       onClick: () => setMLoc(loc),
-      style: locBtn(loc, on)
+      style: locBtn(loc, mLoc === loc)
     }, /*#__PURE__*/React.createElement("div", {
       style: {
         fontWeight: 600
@@ -2608,127 +2586,126 @@ function App() {
         opacity: .7,
         marginTop: 2
       }
-    }, "tem: ", qty));
-  }))), modal.type === "saida" && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
-    style: SL
-  }, "LOCAL DE ONDE SAIU (consumido)"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "grid",
-      gridTemplateColumns: "1fr 1fr",
-      gap: 7,
-      marginBottom: 16
-    }
-  }, LOCS.map(loc => {
-    const on = mLoc === loc,
-      qty = modal.item.locations?.[loc] || 0;
-    return /*#__PURE__*/React.createElement("button", {
-      key: loc,
-      onClick: () => qty > 0 && setMLoc(loc),
+    }, "tem: ", item.locations?.[loc] || 0))))), type === "saida" && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+      style: SL
+    }, "LOCAL DE ONDE SAIU"), /*#__PURE__*/React.createElement("div", {
       style: {
-        ...locBtn(loc, on),
-        opacity: qty === 0 ? .35 : 1,
-        cursor: qty === 0 ? "default" : "pointer"
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr",
+        gap: 7,
+        marginBottom: 16
       }
-    }, /*#__PURE__*/React.createElement("div", {
+    }, LOCS.map(loc => {
+      const qty = item.locations?.[loc] || 0;
+      return /*#__PURE__*/React.createElement("button", {
+        key: loc,
+        onClick: () => qty > 0 && setMLoc(loc),
+        style: {
+          ...locBtn(loc, mLoc === loc),
+          opacity: qty === 0 ? .35 : 1,
+          cursor: qty === 0 ? "default" : "pointer"
+        }
+      }, /*#__PURE__*/React.createElement("div", {
+        style: {
+          fontWeight: 600
+        }
+      }, loc), /*#__PURE__*/React.createElement("div", {
+        style: {
+          fontSize: 9,
+          opacity: .7,
+          marginTop: 2
+        }
+      }, "disponível: ", qty));
+    }))), /*#__PURE__*/React.createElement("div", {
+      style: SL
+    }, "QUANTIDADE"), /*#__PURE__*/React.createElement("div", {
       style: {
-        fontWeight: 600
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        background: "rgba(255,255,255,.03)",
+        border: "1px solid rgba(255,255,255,.07)",
+        borderRadius: 9,
+        padding: "7px 10px",
+        marginBottom: 12
       }
-    }, loc), /*#__PURE__*/React.createElement("div", {
+    }, /*#__PURE__*/React.createElement("button", {
+      onClick: () => setMQty(Math.max(1, mQty - 1)),
       style: {
-        fontSize: 9,
-        opacity: .7,
-        marginTop: 2
+        width: 32,
+        height: 32,
+        borderRadius: 7,
+        background: "rgba(255,255,255,.07)",
+        color: "#e2e8f0",
+        fontSize: 18,
+        border: "none",
+        cursor: "pointer"
       }
-    }, "disponível: ", qty));
-  }))), /*#__PURE__*/React.createElement("div", {
-    style: SL
-  }, "QUANTIDADE"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      alignItems: "center",
-      gap: 10,
-      background: "rgba(255,255,255,.03)",
-      border: "1px solid rgba(255,255,255,.07)",
-      borderRadius: 9,
-      padding: "7px 10px",
-      marginBottom: 12
-    }
-  }, /*#__PURE__*/React.createElement("button", {
-    onClick: () => setMQty(Math.max(1, mQty - 1)),
-    style: {
-      width: 32,
-      height: 32,
-      borderRadius: 7,
-      background: "rgba(255,255,255,.07)",
-      color: "#e2e8f0",
-      fontSize: 18,
-      border: "none",
-      cursor: "pointer"
-    }
-  }, "−"), /*#__PURE__*/React.createElement("input", {
-    type: "number",
-    value: mQty,
-    onChange: e => setMQty(Math.max(1, parseInt(e.target.value) || 1)),
-    style: {
-      flex: 1,
-      background: "none",
-      border: "none",
-      color: "#e2e8f0",
-      fontSize: 24,
-      fontWeight: 700,
-      fontFamily: "'Rajdhani',sans-serif",
-      textAlign: "center"
-    }
-  }), /*#__PURE__*/React.createElement("button", {
-    onClick: () => setMQty(mQty + 1),
-    style: {
-      width: 32,
-      height: 32,
-      borderRadius: 7,
-      background: "rgba(255,255,255,.07)",
-      color: "#e2e8f0",
-      fontSize: 18,
-      border: "none",
-      cursor: "pointer"
-    }
-  }, "+")), /*#__PURE__*/React.createElement("div", {
-    style: SL
-  }, "OBSERVAÇÃO (opcional)"), /*#__PURE__*/React.createElement("textarea", {
-    placeholder: "Ex: voo SP-001...",
-    value: mNote,
-    onChange: e => setMNote(e.target.value),
-    style: {
-      width: "100%",
-      background: "rgba(255,255,255,.03)",
-      border: "1px solid rgba(255,255,255,.07)",
-      borderRadius: 8,
-      padding: "8px 10px",
-      color: "#e2e8f0",
-      fontSize: 12,
-      marginBottom: 14,
-      resize: "none",
-      height: 44
-    }
-  }), /*#__PURE__*/React.createElement("button", {
-    onClick: handleMove,
-    disabled: modal.type !== "entrada" && !mLoc,
-    style: {
-      width: "100%",
-      padding: "13px",
-      borderRadius: 11,
-      background: modal.type === "entrada" || modal.type !== "entrada" && mLoc ? modal.type === "entrada" ? "#22c55e" : modal.type === "transferir" ? "#ca8a04" : "#ef4444" : "rgba(255,255,255,.04)",
-      color: modal.type === "entrada" || modal.type !== "entrada" && mLoc ? "#fff" : "#4a5568",
-      fontWeight: 700,
-      fontSize: 14,
-      fontFamily: "'Rajdhani',sans-serif",
-      letterSpacing: 1,
-      border: "none",
-      cursor: modal.type === "entrada" || modal.type !== "entrada" && mLoc ? "pointer" : "default"
-    }
-  }, modal.type === "entrada" ? "CONFIRMAR ENTRADA" : modal.type === "transferir" ? !mLoc ? "ESCOLHA O DESTINO" : "CONFIRMAR TRANSFERÊNCIA" : !mLoc ? "ESCOLHA O LOCAL" : "CONFIRMAR SAÍDA"), /*#__PURE__*/React.createElement("button", {
-    style: CB,
-    onClick: () => setModal(null)
-  }, "Cancelar"))), adjM && /*#__PURE__*/React.createElement("div", {
+    }, "−"), /*#__PURE__*/React.createElement("input", {
+      type: "number",
+      value: mQty,
+      onChange: e => setMQty(Math.max(1, parseInt(e.target.value) || 1)),
+      style: {
+        flex: 1,
+        background: "none",
+        border: "none",
+        color: "#e2e8f0",
+        fontSize: 24,
+        fontWeight: 700,
+        fontFamily: "'Rajdhani',sans-serif",
+        textAlign: "center"
+      }
+    }), /*#__PURE__*/React.createElement("button", {
+      onClick: () => setMQty(mQty + 1),
+      style: {
+        width: 32,
+        height: 32,
+        borderRadius: 7,
+        background: "rgba(255,255,255,.07)",
+        color: "#e2e8f0",
+        fontSize: 18,
+        border: "none",
+        cursor: "pointer"
+      }
+    }, "+")), /*#__PURE__*/React.createElement("div", {
+      style: SL
+    }, "OBSERVAÇÃO (opcional)"), /*#__PURE__*/React.createElement("textarea", {
+      placeholder: "Ex: voo SP-001...",
+      value: mNote,
+      onChange: e => setMNote(e.target.value),
+      style: {
+        width: "100%",
+        background: "rgba(255,255,255,.03)",
+        border: "1px solid rgba(255,255,255,.07)",
+        borderRadius: 8,
+        padding: "8px 10px",
+        color: "#e2e8f0",
+        fontSize: 12,
+        marginBottom: 14,
+        resize: "none",
+        height: 44
+      }
+    }), /*#__PURE__*/React.createElement("button", {
+      onClick: handleMove,
+      disabled: type !== "entrada" && !mLoc,
+      style: {
+        width: "100%",
+        padding: "13px",
+        borderRadius: 11,
+        background: type === "entrada" || type !== "entrada" && mLoc ? type === "entrada" ? "#22c55e" : type === "transferir" ? "#ca8a04" : "#ef4444" : "rgba(255,255,255,.04)",
+        color: type === "entrada" || type !== "entrada" && mLoc ? "#fff" : "#4a5568",
+        fontWeight: 700,
+        fontSize: 14,
+        fontFamily: "'Rajdhani',sans-serif",
+        letterSpacing: 1,
+        border: "none",
+        cursor: type === "entrada" || type !== "entrada" && mLoc ? "pointer" : "default"
+      }
+    }, type === "entrada" ? "CONFIRMAR ENTRADA" : type === "transferir" ? !mLoc ? "ESCOLHA O DESTINO" : "CONFIRMAR TRANSFERÊNCIA" : !mLoc ? "ESCOLHA O LOCAL" : "CONFIRMAR SAÍDA"), /*#__PURE__*/React.createElement("button", {
+      style: CB,
+      onClick: () => setModal(null)
+    }, "Cancelar")));
+  })(), adjM && /*#__PURE__*/React.createElement("div", {
     style: OV,
     onClick: e => e.target === e.currentTarget && setAdjM(null)
   }, /*#__PURE__*/React.createElement("div", {
@@ -2761,27 +2738,24 @@ function App() {
       gap: 7,
       marginBottom: 14
     }
-  }, LOCS.map(l => {
-    const on = adjLoc === l;
-    return /*#__PURE__*/React.createElement("button", {
-      key: l,
-      onClick: () => {
-        setAdjLoc(l);
-        setAdjQ(adjM.locations?.[l] || 0);
-      },
-      style: locBtn(l, on)
-    }, /*#__PURE__*/React.createElement("div", {
-      style: {
-        fontWeight: 600
-      }
-    }, l), /*#__PURE__*/React.createElement("div", {
-      style: {
-        fontSize: 9,
-        opacity: .7,
-        marginTop: 2
-      }
-    }, "atual: ", adjM.locations?.[l] || 0));
-  })), /*#__PURE__*/React.createElement("div", {
+  }, LOCS.map(l => /*#__PURE__*/React.createElement("button", {
+    key: l,
+    onClick: () => {
+      setAdjLoc(l);
+      setAdjQ(adjM.locations?.[l] || 0);
+    },
+    style: locBtn(l, adjLoc === l)
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 600
+    }
+  }, l), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 9,
+      opacity: .7,
+      marginTop: 2
+    }
+  }, "atual: ", adjM.locations?.[l] || 0)))), /*#__PURE__*/React.createElement("div", {
     style: SL
   }, "NOVO TOTAL EM ", adjLoc.toUpperCase()), /*#__PURE__*/React.createElement("div", {
     style: {
@@ -2877,7 +2851,7 @@ function App() {
       textAlign: "center",
       marginBottom: 16
     }
-  }, itmM === "new" ? "Adicionar item" : itmF.name || "Editar"), [["Nome *", "name", "Ex: Refrigerante Limão", "text"], ["Marca", "brand", "Ex: Coca-Cola", "text"], ["Peso / Tamanho", "size", "Ex: 350ml", "text"], ["Unidade", "unit", "Ex: PCT, CX", "text"]].map(([lbl, fld, ph, tp]) => /*#__PURE__*/React.createElement("div", {
+  }, itmM === "new" ? "Adicionar item" : itmF.name || "Editar"), [["Nome *", "name", "Ex: Refrigerante Limão"], ["Marca", "brand", "Ex: Coca-Cola"], ["Peso / Tamanho", "size", "Ex: 350ml"], ["Unidade", "unit", "Ex: PCT, CX"]].map(([lbl, fld, ph]) => /*#__PURE__*/React.createElement("div", {
     key: fld,
     style: {
       marginBottom: 12
@@ -2885,7 +2859,6 @@ function App() {
   }, /*#__PURE__*/React.createElement("div", {
     style: SL
   }, lbl), /*#__PURE__*/React.createElement("input", {
-    type: tp,
     placeholder: ph,
     value: itmF[fld] || "",
     onChange: e => setItmF(f => ({
@@ -2959,8 +2932,9 @@ function App() {
     style: SL
   }, "CATEGORIA"), /*#__PURE__*/React.createElement("div", {
     style: {
-      display: "flex",
-      gap: 7
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr 1fr",
+      gap: 6
     }
   }, ["BEBIDAS", "ALIMENTOS", "MATERIAL DE COMISSARIA", "MATERIAL DE LIMPEZA", "MATERIAL GERAL"].map(t => /*#__PURE__*/React.createElement("button", {
     key: t,
@@ -2969,15 +2943,15 @@ function App() {
       type: t
     })),
     style: {
-      flex: 1,
-      padding: "10px 4px",
+      padding: "8px 4px",
       borderRadius: 8,
-      background: itmF.type === t ? CAT_BG[t] : "rgba(255,255,255,.03)",
-      border: `1px solid ${itmF.type === t ? CAT_C[t] + "60" : "rgba(255,255,255,.07)"}`,
-      color: itmF.type === t ? CAT_C[t] : "#4a5568",
-      fontSize: 11,
+      background: itmF.type === t ? CAT_BG[t] || "rgba(255,255,255,.08)" : "rgba(255,255,255,.03)",
+      border: `1px solid ${itmF.type === t ? (CAT_C[t] || "#fff") + "60" : "rgba(255,255,255,.07)"}`,
+      color: itmF.type === t ? CAT_C[t] || "#e2e8f0" : "#4a5568",
+      fontSize: 9,
       fontWeight: 600,
-      cursor: "pointer"
+      cursor: "pointer",
+      lineHeight: 1.3
     }
   }, t)))), /*#__PURE__*/React.createElement("button", {
     onClick: handleSaveItm,
@@ -3120,7 +3094,7 @@ function App() {
       color: "#4a5568",
       marginBottom: 6
     }
-  }, "Todos os itens de \"", delCat, "\" irão para a lixeira."), /*#__PURE__*/React.createElement("div", {
+  }, "\"", delCat, "\" irá para a lixeira."), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 12,
       color: "#f87171",
